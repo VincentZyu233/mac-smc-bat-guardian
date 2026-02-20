@@ -50,3 +50,18 @@ The project includes a sophisticated TUI monitoring interface built with Textual
 
 - [0% - 55%]: Charging logic active, MagSafe light is orange, `current_now` > 0.
 - [> 55%]: Cut-off triggered. SMC forcibly cuts off the current flowing to the battery.
+
+### ⚙️ Why C Code is Required
+
+The C code (`smc_control.c`) is essential because it performs direct low-level access to the MacBook's SMC (System Management Controller) hardware via I/O ports (such as 0x300/0x304). This is required to set the battery charge limit (BCLM) and cannot be done with pure Python or most other high-level languages. Only C (or similar low-level languages) can:
+
+- Use privileged instructions like `ioperm`, `inb`, and `outb` to communicate with hardware ports.
+- Operate at the system level with root permissions to send commands directly to the SMC chip.
+
+**Why can't Python or other high-level languages do this?**
+- Python and most high-level languages do not provide direct access to CPU I/O ports for security and portability reasons.
+- Even with Python's `ctypes` or `cffi`, you still need a C library or extension to perform these privileged operations.
+- All known open-source SMC tools (e.g., smcFanControl, smc-util) use C/C++ for this reason.
+
+**Summary:**
+- The C code is irreplaceable for direct SMC control. Python is used for UI, automation, and monitoring, but the actual hardware command must be sent by C code running as root.
