@@ -1,0 +1,11 @@
+# 编译产物
+smc_control
+
+# 日志文件
+logs/
+*.log
+
+# 系统/编辑器缓存
+.DS_Store
+__pycache__/
+.vscode/
