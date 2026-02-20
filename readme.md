@@ -1,19 +1,48 @@
-# MacBook SMC Charge Limiter (VincentZyu 版)
+# 🛡️ mac-smc-bat-guardian
 
-## 🚀 项目简介
-本项目通过直接操作 MacBook A1398 的 SMC (System Management Controller) 端口，强制设定充电阈值。
-主要解决在 Linux 环境下，TLP 无法通过常规驱动控制 Mac 电池充电的问题。
+## 🚀 Project Introduction
+This project manages the battery charging threshold (BCLM) by directly interacting with the SMC (System Management Controller) ports of a MacBook, while providing real-time power monitoring. 
+It primarily addresses the issue where TLP cannot control the charging threshold of MacBooks through standard drivers in a Linux environment.
 
-### 🛠️ 编译与运行
-使用 GCC 编译 C 语言底层程序：
+### 💻 Device Compatibility
+This tool is primarily intended for **Intel x86_64** architecture MacBook devices that manage power via **SMC**.
+- **Verified**: MacBook Pro 11,4 (Mid 2015)
+- **Theoretical Support**: Most MacBook Pro/Air models from 2006 to 2020 (Intel chips). These devices typically include the `applesmc` driver and support the `BCLM` key.
+- **Unsupported**: 
+  - M1/M2/M3 (Apple Silicon) devices (they use a different, proprietary power management mechanism).
+  - Very old MacBooks that do not have battery charging threshold control capabilities.
+
+### 🛠️ Build and Run
+Compile the low-level C program using GCC:
 ```bash
 gcc -O2 smc_control.c -o smc_control
-sudo ./smc_control 55  # 设置上限为 55%
+sudo ./smc_control 55  # Set limit to 55%
 ```
 
-###🔋 预期电源策略行为
+### 🖥️ TUI Monitoring Interface
+The project includes a sophisticated TUI monitoring interface built with Textual.
 
-- [0% - 55%]: 充电逻辑激活，MagSafe 橙灯，current_now > 0。
+1. **Install Dependencies**:
+   ```bash
+   # https://gitee.com/wangnov/uv-custom/releases
+   curl -LsSf https://raw.githubusercontent.com/astral-sh/uv/main/install.sh | sh
+   uv venv # --python <version>
+   uv pip install -r requirements.txt
+   ```
 
-- [> 55%]: 触发截断。SMC 强制切断流向电池的电流。
+2. **Configuration**:
+   Copy `.env.example` to `.env` and modify as needed:
+   ```bash
+   cp .env.example .env
+   ```
+   You can configure `LOG_LEVEL` (debug, info, warn, error, silent) and `BATTERY_THRESHOLD`.
 
+3. **Run**:
+   ```bash
+   uv run python smc_tui.py
+   ```
+
+### 🔋 Expected Power Delivery Behavior
+
+- [0% - 55%]: Charging logic active, MagSafe light is orange, `current_now` > 0.
+- [> 55%]: Cut-off triggered. SMC forcibly cuts off the current flowing to the battery.
