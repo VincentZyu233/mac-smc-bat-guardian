@@ -9,6 +9,8 @@ It primarily addresses the issue where TLP cannot control the charging threshold
 ### 💻 Device Compatibility
 This tool is primarily intended for **Intel x86_64** architecture MacBook devices that manage power via **SMC**.
 - **Verified**: MacBook Pro 11,4 A1398(Mid 2015)
+> My Device Info:
+![my_device_macbook_pro_11_4_A1398.png](my_device_macbook_pro_11_4_A1398.png)
 - **Theoretical Support**: Most MacBook Pro/Air models from 2006 to 2020 (Intel chips). These devices typically include the `applesmc` driver and support the `BCLM` key.
 - **Unsupported**: 
   - M1/M2/M3 (Apple Silicon) devices (they use a different, proprietary power management mechanism).

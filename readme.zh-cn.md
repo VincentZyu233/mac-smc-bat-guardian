@@ -9,6 +9,8 @@
 ### 💻 设备兼容性 (Compatibility)
 本工具主要适用于通过 **SMC** 管理电源的 **Intel x86_64** 架构 MacBook 设备。
 - **验证通过**: MacBook Pro 11,4 A1398(Mid 2015)
+> 我的设备信息:
+![my_device_macbook_pro_11_4_A1398.png](my_device_macbook_pro_11_4_A1398.png)
 - **理论支持**: 大多数 2006 年至 2020 年间的 MacBook Pro/Air (Intel 芯片)。这些设备通常包含 `applesmc` 驱动并支持 `BCLM` 键值。
 - **不支持**: 
   - M1/M2/M3 (Apple Silicon) 芯片设备（它们使用不同的电源管理机制）。
