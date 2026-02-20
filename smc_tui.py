@@ -3,6 +3,7 @@ import time
 import argparse
 import subprocess
 import sys
+import yaml
 from datetime import datetime
 from dotenv import load_dotenv
 from textual.app import App, ComposeResult
@@ -13,10 +14,13 @@ from textual.reactive import reactive
 # Load environment variables
 load_dotenv()
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "info").lower()
-THRESHOLD = int(os.getenv("BATTERY_THRESHOLD", "55"))
-BAT_PATH = os.getenv("BAT_PATH", "/sys/class/power_supply/BAT0")
-AC_PATH = os.getenv("AC_PATH", "/sys/class/power_supply/ADP1")
+# Global config variables (will be set in main)
+LOG_LEVEL = "info"
+THRESHOLD = 55
+BAT_PATH = ""
+AC_PATH = ""
+I18N = {}
+USE_EMOJI = True
 
 LEVELS = {
     "debug": 10,
@@ -25,7 +29,30 @@ LEVELS = {
     "error": 40,
     "silent": 50
 }
-MIN_LOG_LEVEL = LEVELS.get(LOG_LEVEL, 20)
+
+def load_i18n(lang_code, disable_emoji):
+    try:
+        with open("i18n.yml", "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except FileNotFoundError:
+        print("Error: i18n.yml not found.")
+        sys.exit(1)
+
+    # Fallback to 'en' if lang_code not found
+    if lang_code not in data:
+        print(f"Warning: Language '{lang_code}' not found, falling back to 'en'.")
+        lang_code = "en"
+    
+    strings = data[lang_code]
+    emojis = data.get("emojis", {}) if not disable_emoji else {}
+    
+    return strings, emojis
+
+def t(key):
+    """Translate key to string, prepending emoji if enabled."""
+    text = I18N[0].get(key, key)
+    icon = I18N[1].get(key, "")
+    return f"{icon}{text}"
 
 class SMCTui(App):
     CSS = """
@@ -90,35 +117,44 @@ class SMCTui(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Static("SMC Control & Battery Monitor", id="title")
+        yield Static(t("title"), id="title")
         with Horizontal(id="main_container"):
             with Vertical(id="left_panel"):
-                yield Label("Real-time Logs")
+                yield Label(t("realtime_logs"))
                 yield Log(id="log_view")
             with Vertical(id="right_panel"):
-                yield Label("System Info", classes="info_label")
-                yield Label("Capacity:", classes="info_label")
+                yield Label(t("system_info"), classes="info_label")
+                yield Label(t("capacity"), classes="info_label")
                 yield Label("0%", id="cap_val", classes="info_value")
-                yield Label("Current:", classes="info_label")
+                yield Label(t("current"), classes="info_label")
                 yield Label("0 mA", id="curr_val", classes="info_value")
-                yield Label("Status:", classes="info_label")
+                yield Label(t("status"), classes="info_label")
                 yield Label("N/A", id="status_val", classes="info_value")
-                yield Label("AC Power:", classes="info_label")
-                yield Label("Disconnected", id="ac_val", classes="info_value")
+                yield Label(t("ac_power"), classes="info_label")
+                yield Label(t("disconnected"), id="ac_val", classes="info_value")
                 
-                yield Label("\nPower Details:", classes="info_label")
-                yield Label("- Charging Battery: No", id="char_bat", classes="info_value")
-                yield Label("- Charging Motherboard: No", id="char_mb", classes="info_value")
-                yield Label("- Battery Supplying: No", id="bat_supp", classes="info_value")
+                yield Label("\n" + t("power_details"), classes="info_label")
+                yield Label(t("char_bat_label"), id="char_bat_l", classes="info_value") # label needs id to update text? No, static text
+                yield Label("No", id="char_bat", classes="info_value")
+                
+                yield Label(t("char_mb_label"), id="char_mb_l", classes="info_value") 
+                yield Label("No", id="char_mb", classes="info_value")
+                
+                yield Label(t("bat_supp_label"), id="bat_supp_l", classes="info_value")
+                yield Label("No", id="bat_supp", classes="info_value")
+
         yield Footer()
 
     def on_mount(self) -> None:
-        self.log_message(f"Monitor started (Threshold: {THRESHOLD}%)", "info")
+        msg = t("monitor_started").format(threshold=THRESHOLD)
+        self.log_message(msg, "info", "monitor_start")
         self.set_interval(2.0, self.update_stats)
 
-    def log_message(self, msg: str, level: str = "info"):
+    def log_message(self, msg: str, level: str = "info", emoji_key: str = None):
+        min_level = LEVELS.get(LOG_LEVEL, 20)
         level_val = LEVELS.get(level.lower(), 20)
-        if level_val < MIN_LOG_LEVEL:
+        
+        if level_val < min_level:
             return
             
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -128,9 +164,14 @@ class SMCTui(App):
             "warn": "[yellow]",
             "error": "[red]",
         }
-        prefix = color_map.get(level.lower(), "[white]")
+        prefix_color = color_map.get(level.lower(), "[white]")
+        
+        # Emoji logic
+        lvl_emoji = I18N[1].get(f"log_{level.lower()}", "")
+        content_emoji = I18N[1].get(emoji_key, "") if emoji_key else ""
+        
         log_view = self.query_one("#log_view", Log)
-        log_view.write_line(f"{prefix}[{timestamp}] {level.upper()}: {msg}[/]")
+        log_view.write_line(f"{lvl_emoji}{prefix_color}[{timestamp}] {level.upper()}: {content_emoji}{msg}[/]")
 
     def get_sys_val(self, path, file):
         try:
@@ -158,55 +199,86 @@ class SMCTui(App):
         if ac_str is not None:
             self.ac_online = ac_str == "1"
 
+        # Translate simple status words if possible, else keep raw
+        status_display = self.battery_status
+        # Map common statuses
+        if self.battery_status == "Charging": status_display = "Charging" # Logic below handles translations better actually? No, status from sysfs is English.
+        # We can try to map sysfs status to i18n
+        
         # Update UI Labels
-        self.query_one("#cap_val", Label).update(f"{self.battery_capacity}%")
-        self.query_one("#curr_val", Label).update(f"{self.battery_current} mA")
-        self.query_one("#status_val", Label).update(self.battery_status)
-        self.query_one("#ac_val", Label).update("Connected" if self.ac_online else "Disconnected")
+        self.query_one("#cap_val", Label).update(f"{I18N[1].get('capacity', '')}{self.battery_capacity}%")
+        self.query_one("#curr_val", Label).update(f"{I18N[1].get('current', '')}{self.battery_current} mA")
+        self.query_one("#status_val", Label).update(f"{I18N[1].get('status', '')}{status_display}")
+        
+        ac_text = t("connected") if self.ac_online else t("disconnected")
+        self.query_one("#ac_val", Label).update(ac_text)
         
         # Power source details
         charging_bat = self.battery_status == "Charging"
         charging_mb = self.ac_online
         bat_supplying = self.battery_status == "Discharging"
 
-        self.query_one("#char_bat", Label).update(f"- Charging Battery: {'Yes' if charging_bat else 'No'}")
-        self.query_one("#char_mb", Label).update(f"- Charging Motherboard: {'Yes' if charging_mb else 'No'}")
-        self.query_one("#bat_supp", Label).update(f"- Battery Supplying: {'Yes' if bat_supplying else 'No'}")
+        yes = t("yes")
+        no = t("no")
+        
+        # Icons for boolean states
+        cb_icon = I18N[1].get("char_bat_yes" if charging_bat else "char_bat_no", "")
+        cmb_icon = I18N[1].get("char_mb_yes" if charging_mb else "char_mb_no", "")
+        bs_icon = I18N[1].get("bat_supp_yes" if bat_supplying else "bat_supp_no", "")
+
+        self.query_one("#char_bat", Label).update(f"{cb_icon}{yes if charging_bat else no}")
+        self.query_one("#char_mb", Label).update(f"{cmb_icon}{yes if charging_mb else no}")
+        self.query_one("#bat_supp", Label).update(f"{bs_icon}{yes if bat_supplying else no}")
 
         # Logging Logic
         if self.last_cap is not None:
             # Threshold crossing
             if (self.last_cap <= THRESHOLD and self.battery_capacity > THRESHOLD) or \
                (self.last_cap >= THRESHOLD and self.battery_capacity < THRESHOLD):
-                self.log_message(f"⚠️ Battery threshold {THRESHOLD}% crossed! Current: {self.battery_capacity}%", "warn")
+                msg = t("threshold_crossed").format(threshold=THRESHOLD, capacity=self.battery_capacity)
+                self.log_message(msg, "warn", "threshold_cross")
             elif self.battery_capacity == THRESHOLD and self.last_cap != THRESHOLD:
-                self.log_message(f"🎯 Battery reached threshold: {THRESHOLD}%", "info")
+                msg = t("threshold_reached").format(threshold=THRESHOLD)
+                self.log_message(msg, "info", "threshold_reach")
 
         # Status change logging
         if self.last_status != self.battery_status and self.last_status is not None:
-            self.log_message(f"🔋 Status changed: {self.last_status} -> {self.battery_status}", "info")
-            self.log_message(f"Detail: Charging Bat: {charging_bat}, Supplying: {bat_supplying}", "debug")
+             msg = t("status_changed").format(old=self.last_status, new=self.battery_status)
+             self.log_message(msg, "info", "status_change")
 
         if self.last_ac != self.ac_online and self.last_ac is not None:
-            self.log_message(f"🔌 AC Power {'Connected' if self.ac_online else 'Disconnected'}", "info")
-            self.log_message(f"Charging Motherboard: {charging_mb}", "debug")
+            msg = t("ac_connected") if self.ac_online else t("ac_disconnected")
+            emoji_key = "ac_connect" if self.ac_online else "ac_disconnect"
+            self.log_message(msg, "info", emoji_key)
 
         self.last_cap = self.battery_capacity
         self.last_status = self.battery_status
         self.last_ac = self.ac_online
 
 if __name__ == "__main__":
-    # Parse optional threshold argument: `python smc_tui.py 55`
-    parser = argparse.ArgumentParser(description="SMC TUI monitor (optionally set initial threshold)")
-    parser.add_argument("threshold", nargs="?", type=int, help="Initial battery threshold to set (0-100)")
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description="SMC TUI monitor")
+    parser.add_argument("threshold", nargs="?", type=int, help="Initial battery threshold (0-100)")
+    parser.add_argument("--lang", default="en", help="Language code (en, zh-cn), default: en")
+    parser.add_argument("--disable-emoji", action="store_true", help="Disable emojis in UI")
     args = parser.parse_args()
 
-    # Determine threshold: CLI arg > .env > default 55
+    # Load Config from .env and CLI
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "info").lower()
+    BAT_PATH = os.getenv("BAT_PATH", "/sys/class/power_supply/BAT0")
+    AC_PATH = os.getenv("AC_PATH", "/sys/class/power_supply/ADP1")
+    
+    # Threshold Logic: CLI arg > .env > default 55
     cli_threshold = args.threshold
     env_threshold = int(os.getenv("BATTERY_THRESHOLD", "55"))
     chosen_threshold = cli_threshold if cli_threshold is not None else env_threshold
+    THRESHOLD = chosen_threshold
+    
+    # Load I18N
+    I18N = load_i18n(args.lang.lower(), args.disable_emoji)
+    USE_EMOJI = not args.disable_emoji
 
-    # Ensure running as root on Unix-like systems
+    # Root check
     if os.name != 'nt':
         try:
             if os.geteuid() != 0:
@@ -215,7 +287,7 @@ if __name__ == "__main__":
         except AttributeError:
             pass
 
-    # Attempt to call the compiled C helper if present
+    # Call binary
     bin_path = os.path.join(os.path.dirname(__file__), "smc_control")
     if os.path.exists(bin_path) and os.access(bin_path, os.X_OK):
         try:
@@ -224,10 +296,7 @@ if __name__ == "__main__":
         except subprocess.CalledProcessError as e:
             print(f"Error: calling {bin_path} failed: {e}")
     else:
-        print(f"Warning: binary '{bin_path}' not found or not executable. Please compile it manually:\n  gcc -O2 smc_control.c -o smc_control")
-
-    # Override runtime threshold used by the app
-    THRESHOLD = chosen_threshold
+        print(f"Warning: binary '{bin_path}' not found or not executable.")
 
     app = SMCTui()
     app.run()

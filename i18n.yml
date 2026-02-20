@@ -1,0 +1,90 @@
+# Language configurations (default: en)
+
+# Optional Emoji definitions (prepended if --disable-emoji is not set)
+emojis:
+  title: "🛡️ "
+  realtime_logs: "📝 "
+  system_info: "💻 "
+  capacity: "🔋 "
+  current: "⚡ "
+  status: "📊 "
+  ac_power: "🔌 "
+  power_details: "⚙️ "
+  char_bat_yes: "✅ "
+  char_bat_no: "❌ "
+  char_mb_yes: "✅ "
+  char_mb_no: "❌ "
+  bat_supp_yes: "✅ "
+  bat_supp_no: "❌ "
+  # Log level prefixes
+  log_debug: "🐛 "
+  log_info: "ℹ️ "
+  log_warn: "⚠️ "
+  log_error: "🛑 "
+  # Log content emojis
+  monitor_start: "🚀 "
+  threshold_cross: "⚠️ "
+  threshold_reach: "🎯 "
+  status_change: "🔋 "
+  ac_connect: "🔌 "
+  ac_disconnect: "🔌 "
+
+# English
+en:
+  title: "SMC Control & Battery Monitor"
+  realtime_logs: "Real-time Logs"
+  system_info: "System Info"
+  capacity: "Capacity:"
+  current: "Current:"
+  status: "Status:"
+  ac_power: "AC Power:"
+  power_details: "Power Details:"
+  
+  # Status values
+  connected: "Connected"
+  disconnected: "Disconnected"
+  yes: "Yes"
+  no: "No"
+  
+  # Detail labels
+  char_bat_label: "- Charging Battery:"
+  char_mb_label: "- Charging Motherboard:"
+  bat_supp_label: "- Battery Supplying:"
+
+  # Log messages templates (Python f-string style placeholders)
+  monitor_started: "Monitor started (Threshold: {threshold}%)"
+  threshold_crossed: "Battery threshold {threshold}% crossed! Current: {capacity}%"
+  threshold_reached: "Battery reached threshold: {threshold}%"
+  status_changed: "Status changed: {old} -> {new}"
+  ac_connected: "AC Power Connected"
+  ac_disconnected: "AC Power Disconnected"
+
+# Chinese (Simplified)
+zh-cn:
+  title: "SMC 控制与电池监控"
+  realtime_logs: "实时日志"
+  system_info: "系统信息"
+  capacity: "当前电量:"
+  current: "当前电流:"
+  status: "电池状态:"
+  ac_power: "电源连接:"
+  power_details: "供电详情:"
+  
+  # Status values
+  connected: "已连接"
+  disconnected: "未连接"
+  yes: "是"
+  no: "否"
+  
+  # Detail labels
+  char_bat_label: "- 正在充电:"
+  char_mb_label: "- 主板供电:"
+  bat_supp_label: "- 电池供电:"
+
+  # Log messages
+  monitor_started: "监控已启动 (阈值: {threshold}%)"
+  threshold_crossed: "电量越过阈值 {threshold}%！当前: {capacity}%"
+  threshold_reached: "电量达到阈值: {threshold}%"
+  status_changed: "状态变更: {old} -> {new}"
+  ac_connected: "电源已连接"
+  ac_disconnected: "电源已断开"
