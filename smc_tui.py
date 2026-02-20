@@ -54,7 +54,7 @@ class SMCTui(App):
     }
 
     .info_label {
-        font-weight: bold;
+        text-style: bold;
         color: #f1c40f;
         margin-bottom: 1;
     }

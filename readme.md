@@ -1,12 +1,14 @@
 # 🛡️ mac-smc-bat-guardian
 
+[English](readme.md) | [中文说明](readme.zh-cn.md)
+
 ## 🚀 Project Introduction
 This project manages the battery charging threshold (BCLM) by directly interacting with the SMC (System Management Controller) ports of a MacBook, while providing real-time power monitoring. 
 It primarily addresses the issue where TLP cannot control the charging threshold of MacBooks through standard drivers in a Linux environment.
 
 ### 💻 Device Compatibility
 This tool is primarily intended for **Intel x86_64** architecture MacBook devices that manage power via **SMC**.
-- **Verified**: MacBook Pro 11,4 (Mid 2015)
+- **Verified**: MacBook Pro 11,4 A1398(Mid 2015)
 - **Theoretical Support**: Most MacBook Pro/Air models from 2006 to 2020 (Intel chips). These devices typically include the `applesmc` driver and support the `BCLM` key.
 - **Unsupported**: 
   - M1/M2/M3 (Apple Silicon) devices (they use a different, proprietary power management mechanism).
