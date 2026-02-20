@@ -65,3 +65,40 @@ The C code (`smc_control.c`) is essential because it performs direct low-level a
 
 **Summary:**
 - The C code is irreplaceable for direct SMC control. Python is used for UI, automation, and monitoring, but the actual hardware command must be sent by C code running as root.
+
+### 🔍 What to Expect: TUI Output & MagSafe LED
+
+When running with the default threshold (55):
+
+- **If battery drops below 55%:**
+  - TUI log shows a warning like:
+    > [yellow][time] WARN: ⚠️ Battery threshold 55% crossed! Current: 50%
+  - Right panel shows:
+    - Capacity: 50%
+    - Status: Discharging
+    - Charging Battery: ❌ no
+    - Battery Supplying: ✅ yes
+
+- **When you plug in the charger below 55%:**
+  - TUI log shows "AC Power Connected" and status changes to Charging.
+  - Right panel shows:
+    - Status: Charging
+    - Charging Battery: ✅ yes
+    - Motherboard Power: ✅ yes
+    - Battery Supplying: ❌ no
+    - Current: positive value (e.g., 2000 mA)
+  - **MagSafe LED turns orange** (charging)
+
+- **When battery reaches/exceeds 55%:**
+  - TUI log shows:
+    > [yellow][time] WARN: ⚠️ Battery threshold 55% crossed! Current: 55%
+    > [green][time] INFO: 🎯 Battery reached threshold: 55%
+  - Right panel shows:
+    - Status: Not Charging or Idle
+    - Charging Battery: ❌ no
+    - Motherboard Power: ✅ yes
+    - Battery Supplying: ❌ no
+    - Current: 0 or near 0
+  - **MagSafe LED turns green** (charging stopped by SMC)
+
+If you see these behaviors, SMC control and TUI monitoring are working as intended.

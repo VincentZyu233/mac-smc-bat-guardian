@@ -62,33 +62,33 @@ class SMCTui(App):
 
     #main_container {
         height: 100%;
-        margin: 1;
+        margin: 0;
     }
 
     #left_panel {
-        width: 61.8%;
+        width: 1fr;
         height: 100%;
         border: solid #3498db;
-        padding: 1;
+        padding: 0 1;
     }
 
     #right_panel {
-        width: 38.2%;
+        width: 32;
         height: 100%;
         border: solid #2ecc71;
-        padding: 1;
+        padding: 0 1;
         background: #2c3e50;
     }
 
     .info_label {
         text-style: bold;
         color: #f1c40f;
-        margin-bottom: 1;
+        margin: 0;
     }
 
     .info_value {
         color: #ecf0f1;
-        margin-bottom: 1;
+        margin: 0;
     }
 
     Log {
@@ -102,7 +102,6 @@ class SMCTui(App):
         background: #2980b9;
         color: white;
         text-style: bold;
-        padding: 1;
     }
     """
 
@@ -116,7 +115,6 @@ class SMCTui(App):
     last_ac = None
 
     def compose(self) -> ComposeResult:
-        yield Header()
         yield Static(t("title"), id="title")
         with Horizontal(id="main_container"):
             with Vertical(id="left_panel"):
@@ -124,30 +122,22 @@ class SMCTui(App):
                 yield Log(id="log_view")
             with Vertical(id="right_panel"):
                 yield Label(t("system_info"), classes="info_label")
-                yield Label(t("capacity"), classes="info_label")
-                yield Label("0%", id="cap_val", classes="info_value")
-                yield Label(t("current"), classes="info_label")
-                yield Label("0 mA", id="curr_val", classes="info_value")
-                yield Label(t("status"), classes="info_label")
-                yield Label("N/A", id="status_val", classes="info_value")
-                yield Label(t("ac_power"), classes="info_label")
-                yield Label(t("disconnected"), id="ac_val", classes="info_value")
+                yield Label(id="cap_val", classes="info_value")
+                yield Label(id="curr_val", classes="info_value")
+                yield Label(id="status_val", classes="info_value")
+                yield Label(id="ac_val", classes="info_value")
                 
-                yield Label("\n" + t("power_details"), classes="info_label")
-                yield Label(t("char_bat_label"), id="char_bat_l", classes="info_value") # label needs id to update text? No, static text
-                yield Label("No", id="char_bat", classes="info_value")
-                
-                yield Label(t("char_mb_label"), id="char_mb_l", classes="info_value") 
-                yield Label("No", id="char_mb", classes="info_value")
-                
-                yield Label(t("bat_supp_label"), id="bat_supp_l", classes="info_value")
-                yield Label("No", id="bat_supp", classes="info_value")
+                yield Label(t("power_details"), classes="info_label")
+                yield Label(id="char_bat", classes="info_value")
+                yield Label(id="char_mb", classes="info_value")
+                yield Label(id="bat_supp", classes="info_value")
 
         yield Footer()
 
     def on_mount(self) -> None:
         msg = t("monitor_started").format(threshold=THRESHOLD)
         self.log_message(msg, "info", "monitor_start")
+        self.update_stats() # Populate initial values
         self.set_interval(2.0, self.update_stats)
 
     def log_message(self, msg: str, level: str = "info", emoji_key: str = None):
@@ -199,19 +189,13 @@ class SMCTui(App):
         if ac_str is not None:
             self.ac_online = ac_str == "1"
 
-        # Translate simple status words if possible, else keep raw
-        status_display = self.battery_status
-        # Map common statuses
-        if self.battery_status == "Charging": status_display = "Charging" # Logic below handles translations better actually? No, status from sysfs is English.
-        # We can try to map sysfs status to i18n
-        
         # Update UI Labels
-        self.query_one("#cap_val", Label).update(f"{I18N[1].get('capacity', '')}{self.battery_capacity}%")
-        self.query_one("#curr_val", Label).update(f"{I18N[1].get('current', '')}{self.battery_current} mA")
-        self.query_one("#status_val", Label).update(f"{I18N[1].get('status', '')}{status_display}")
+        self.query_one("#cap_val", Label).update(f"{t('capacity')} {self.battery_capacity}%")
+        self.query_one("#curr_val", Label).update(f"{t('current')} {self.battery_current} mA")
+        self.query_one("#status_val", Label).update(f"{t('status')} {self.battery_status}")
         
         ac_text = t("connected") if self.ac_online else t("disconnected")
-        self.query_one("#ac_val", Label).update(ac_text)
+        self.query_one("#ac_val", Label).update(f"{t('ac_power')} {ac_text}")
         
         # Power source details
         charging_bat = self.battery_status == "Charging"
@@ -226,9 +210,10 @@ class SMCTui(App):
         cmb_icon = I18N[1].get("char_mb_yes" if charging_mb else "char_mb_no", "")
         bs_icon = I18N[1].get("bat_supp_yes" if bat_supplying else "bat_supp_no", "")
 
-        self.query_one("#char_bat", Label).update(f"{cb_icon}{yes if charging_bat else no}")
-        self.query_one("#char_mb", Label).update(f"{cmb_icon}{yes if charging_mb else no}")
-        self.query_one("#bat_supp", Label).update(f"{bs_icon}{yes if bat_supplying else no}")
+        self.query_one("#char_bat", Label).update(f"{I18N[0].get('char_bat_label', '')} {cb_icon}{yes if charging_bat else no}")
+        self.query_one("#char_mb", Label).update(f"{I18N[0].get('char_mb_label', '')} {cmb_icon}{yes if charging_mb else no}")
+        self.query_one("#bat_supp", Label).update(f"{I18N[0].get('bat_supp_label', '')} {bs_icon}{yes if bat_supplying else no}")
+
 
         # Logging Logic
         if self.last_cap is not None:
