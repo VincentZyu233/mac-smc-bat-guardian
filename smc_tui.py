@@ -82,16 +82,12 @@ class SMCTui(App):
         height: 3;
         min-height: 3;
         max-height: 3;
-        // dock: top;  // Textual 0.30+自动顶部
-        // z-index: 10;  // 移除
     }
 
     #main_container {
         layout: horizontal; /* 明确主容器是横向排列左右面板 */
         height: 1fr;
         width: 100%;
-        // margin: 0;
-        // overflow: hidden;
     }
 
     #left_panel {
@@ -100,7 +96,6 @@ class SMCTui(App):
         border: solid #3498db;
         padding: 0 1;
         overflow-y: auto;
-        // scrollbar-size: thin;
         scrollbar-gutter: stable;
     }
 
