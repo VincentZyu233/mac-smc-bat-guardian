@@ -81,8 +81,8 @@ class SMCTui(App):
         height: 3;
         min-height: 3;
         max-height: 3;
-        dock: top;
-        z-index: 10;
+        /* dock: top;  // Textual 0.30+自动顶部 */
+        /* z-index: 10;  // 移除 */
     }
 
     #main_container {
@@ -97,8 +97,8 @@ class SMCTui(App):
         border: solid #3498db;
         padding: 0 1;
         overflow-y: auto;
-        scrollbar-width: thin;
-        scrollbar-gutter: stable both-edges;
+        scrollbar-size: thin;
+        scrollbar-gutter: stable;
     }
 
     #right_panel {
@@ -108,8 +108,8 @@ class SMCTui(App):
         padding: 0 1;
         background: #2c3e50;
         overflow-y: auto;
-        scrollbar-width: thin;
-        scrollbar-gutter: stable both-edges;
+        scrollbar-size: thin;
+        scrollbar-gutter: stable;
     }
 
     .info_label {
