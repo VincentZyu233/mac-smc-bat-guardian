@@ -69,14 +69,26 @@ class SMCTui(App):
     CSS = """
     Screen {
         background: #1a1a1b;
-        /* 禁用全局滚动条 */
-        scrollbar-gutter: stable both-edges;
         overflow: hidden;
     }
 
+    #title {
+        text-align: center;
+        width: 100%;
+        background: #2980b9;
+        color: white;
+        text-style: bold;
+        height: 3;
+        min-height: 3;
+        max-height: 3;
+        dock: top;
+        z-index: 10;
+    }
+
     #main_container {
-        height: 100%;
+        height: 1fr;
         margin: 0;
+        overflow: hidden;
     }
 
     #left_panel {
@@ -84,6 +96,9 @@ class SMCTui(App):
         height: 100%;
         border: solid #3498db;
         padding: 0 1;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-gutter: stable both-edges;
     }
 
     #right_panel {
@@ -92,9 +107,9 @@ class SMCTui(App):
         border: solid #2ecc71;
         padding: 0 1;
         background: #2c3e50;
-        /* 禁用右侧滚动条 */
-        overflow: hidden;
-        scrollbar-width: none;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-gutter: stable both-edges;
     }
 
     .info_label {
@@ -111,19 +126,8 @@ class SMCTui(App):
     Log {
         background: transparent;
         color: #bdc3c7;
-        /* 只在日志区显示滚动条，且更早出现 */
-        scrollbar-width: thin;
-        scrollbar-gutter: stable both-edges;
         min-height: 12;
         padding-bottom: 2;
-    }
-
-    #title {
-        text-align: center;
-        width: 100%;
-        background: #2980b9;
-        color: white;
-        text-style: bold;
     }
     """
 
