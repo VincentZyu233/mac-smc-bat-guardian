@@ -113,6 +113,7 @@ class SMCTui(App):
     last_cap = None
     last_status = None
     last_ac = None
+    charging_override_active = False  # True when we've actively stopped charging due to threshold
 
     def compose(self) -> ComposeResult:
         yield Static(t("title"), id="title")
@@ -215,14 +216,22 @@ class SMCTui(App):
         self.query_one("#bat_supp", Label).update(f"{I18N[0].get('bat_supp_label', '')} {bs_icon}{yes if bat_supplying else no}")
 
 
-        # Logging Logic
-        if self.last_cap is not None:
-            # Threshold crossing
-            if (self.last_cap <= THRESHOLD and self.battery_capacity > THRESHOLD) or \
-               (self.last_cap >= THRESHOLD and self.battery_capacity < THRESHOLD):
+        # Active Charge Control Logic
+        if self.ac_online and self.battery_status == "Charging" and self.battery_capacity >= THRESHOLD:
+            # Battery is charging AND over threshold — stop it
+            if not self.charging_override_active:
                 msg = t("threshold_crossed").format(threshold=THRESHOLD, capacity=self.battery_capacity)
                 self.log_message(msg, "warn", "threshold_cross")
-            elif self.battery_capacity == THRESHOLD and self.last_cap != THRESHOLD:
+                self._stop_charging()
+                self.charging_override_active = True
+        elif self.battery_capacity < THRESHOLD - 3 and self.charging_override_active:
+            # Battery dropped 3% below threshold (hysteresis) — resume charging
+            self._start_charging()
+            self.charging_override_active = False
+
+        # Logging Logic
+        if self.last_cap is not None:
+            if self.battery_capacity == THRESHOLD and self.last_cap != THRESHOLD:
                 msg = t("threshold_reached").format(threshold=THRESHOLD)
                 self.log_message(msg, "info", "threshold_reach")
 
@@ -239,6 +248,52 @@ class SMCTui(App):
         self.last_cap = self.battery_capacity
         self.last_status = self.battery_status
         self.last_ac = self.ac_online
+
+    def _stop_charging(self) -> None:
+        """Stop battery charging by enforcing THRESHOLD via sysfs or SMC binary."""
+        # Method 1: sysfs charge_control_end_threshold (supported by some kernels/drivers)
+        end_threshold_path = os.path.join(BAT_PATH, "charge_control_end_threshold")
+        if os.path.exists(end_threshold_path):
+            try:
+                with open(end_threshold_path, 'w') as f:
+                    f.write(str(THRESHOLD))
+                self.log_message(f"已通过 sysfs 设置充电上限: {THRESHOLD}%", "info")
+                return
+            except Exception as e:
+                self.log_message(f"sysfs 写入失败: {e}，尝试 SMC 二进制", "warn")
+
+        # Method 2: smc_control binary (writes Apple SMC BCLM key)
+        bin_path = os.path.join(os.path.dirname(__file__), "smc_control")
+        if os.path.exists(bin_path) and os.access(bin_path, os.X_OK):
+            try:
+                subprocess.run([bin_path, str(THRESHOLD)], check=True)
+                self.log_message(f"已通过 SMC 写入 BCLM={THRESHOLD}，充电已限制", "info")
+            except subprocess.CalledProcessError as e:
+                self.log_message(f"SMC 写入失败: {e}", "error")
+        else:
+            self.log_message("smc_control 未找到或不可执行，无法停止充电！", "error")
+
+    def _start_charging(self) -> None:
+        """Resume normal charging by resetting the charge limit to 100%."""
+        # Method 1: sysfs
+        end_threshold_path = os.path.join(BAT_PATH, "charge_control_end_threshold")
+        if os.path.exists(end_threshold_path):
+            try:
+                with open(end_threshold_path, 'w') as f:
+                    f.write("100")
+                self.log_message("已通过 sysfs 恢复充电 (上限 100%)", "info")
+                return
+            except Exception as e:
+                self.log_message(f"sysfs 恢复失败: {e}，尝试 SMC 二进制", "warn")
+
+        # Method 2: smc_control binary
+        bin_path = os.path.join(os.path.dirname(__file__), "smc_control")
+        if os.path.exists(bin_path) and os.access(bin_path, os.X_OK):
+            try:
+                subprocess.run([bin_path, "100"], check=True)
+                self.log_message("已通过 SMC 写入 BCLM=100，充电已恢复", "info")
+            except subprocess.CalledProcessError as e:
+                self.log_message(f"SMC 恢复失败: {e}", "error")
 
 if __name__ == "__main__":
     # Parse CLI arguments
