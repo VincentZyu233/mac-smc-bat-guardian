@@ -1,3 +1,4 @@
+
 import os
 import time
 import argparse
@@ -11,11 +12,21 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, Log, Label
 from textual.reactive import reactive
 
+# 日志目录和文件名
+LOG_DIR = "./logs"
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+start_time_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+LOG_FILE = os.path.join(LOG_DIR, f"{start_time_str}_power.log")
+
 # Load environment variables
 load_dotenv()
 
+
 # Global config variables (will be set in main)
-LOG_LEVEL = "info"
+CONSOLE_LOG_LEVEL = "info"
+FILE_LOG_LEVEL = "info"
+LOG_LEVEL = "info"  # 兼容旧变量名
 THRESHOLD = 55
 BAT_PATH = ""
 AC_PATH = ""
@@ -58,6 +69,9 @@ class SMCTui(App):
     CSS = """
     Screen {
         background: #1a1a1b;
+        /* 禁用全局滚动条 */
+        scrollbar-gutter: stable both-edges;
+        overflow: hidden;
     }
 
     #main_container {
@@ -78,6 +92,9 @@ class SMCTui(App):
         border: solid #2ecc71;
         padding: 0 1;
         background: #2c3e50;
+        /* 禁用右侧滚动条 */
+        overflow: hidden;
+        scrollbar-width: none;
     }
 
     .info_label {
@@ -94,6 +111,11 @@ class SMCTui(App):
     Log {
         background: transparent;
         color: #bdc3c7;
+        /* 只在日志区显示滚动条，且更早出现 */
+        scrollbar-width: thin;
+        scrollbar-gutter: stable both-edges;
+        min-height: 12;
+        padding-bottom: 2;
     }
 
     #title {
@@ -141,28 +163,39 @@ class SMCTui(App):
         self.update_stats() # Populate initial values
         self.set_interval(2.0, self.update_stats)
 
+
     def log_message(self, msg: str, level: str = "info", emoji_key: str = None):
-        min_level = LEVELS.get(LOG_LEVEL, 20)
+        # 控制台日志
+        min_level = LEVELS.get(CONSOLE_LOG_LEVEL, 20)
         level_val = LEVELS.get(level.lower(), 20)
-        
+        if level_val >= min_level:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            color_map = {
+                "debug": "[cyan]",
+                "info": "[green]",
+                "warn": "[yellow]",
+                "error": "[red]",
+            }
+            prefix_color = color_map.get(level.lower(), "[white]")
+            lvl_emoji = I18N[1].get(f"log_{level.lower()}", "")
+            content_emoji = I18N[1].get(emoji_key, "") if emoji_key else ""
+            log_view = self.query_one("#log_view", Log)
+            log_view.write_line(f"{lvl_emoji}{prefix_color}[{timestamp}] {level.upper()}: {content_emoji}{msg}[/]")
+        # 文件日志
+        self.log_message_file(msg, level)
+
+    def log_message_file(self, msg: str, level: str = "info"):
+        min_level = LEVELS.get(FILE_LOG_LEVEL, 20)
+        level_val = LEVELS.get(level.lower(), 20)
         if level_val < min_level:
             return
-            
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        color_map = {
-            "debug": "[cyan]",
-            "info": "[green]",
-            "warn": "[yellow]",
-            "error": "[red]",
-        }
-        prefix_color = color_map.get(level.lower(), "[white]")
-        
-        # Emoji logic
-        lvl_emoji = I18N[1].get(f"log_{level.lower()}", "")
-        content_emoji = I18N[1].get(emoji_key, "") if emoji_key else ""
-        
-        log_view = self.query_one("#log_view", Log)
-        log_view.write_line(f"{lvl_emoji}{prefix_color}[{timestamp}] {level.upper()}: {content_emoji}{msg}[/]")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"[{timestamp}] {level.upper()}: {msg}\n"
+        try:
+            with open(LOG_FILE, "a") as f:
+                f.write(log_entry)
+        except Exception:
+            pass
 
     def get_sys_val(self, path, file):
         try:
@@ -216,18 +249,19 @@ class SMCTui(App):
         self.query_one("#bat_supp", Label).update(f"{I18N[0].get('bat_supp_label', '')} {bs_icon}{yes if bat_supplying else no}")
 
 
+
         # Active Charge Control Logic
         if self.ac_online and self.battery_status == "Charging" and self.battery_capacity >= THRESHOLD:
-            # Battery is charging AND over threshold — stop it
             if not self.charging_override_active:
                 msg = t("threshold_crossed").format(threshold=THRESHOLD, capacity=self.battery_capacity)
                 self.log_message(msg, "warn", "threshold_cross")
+                self.log_message_file(f"电量跨越阈值! 当前电量: {self.battery_capacity}%", "warn")
                 self._stop_charging()
                 self.charging_override_active = True
         elif self.battery_capacity < THRESHOLD - 3 and self.charging_override_active:
-            # Battery dropped 3% below threshold (hysteresis) — resume charging
             self._start_charging()
             self.charging_override_active = False
+            self.log_message_file(f"电量回落至阈值以下，恢复充电: {self.battery_capacity}%", "info")
 
         # Logging Logic
         if self.last_cap is not None:
@@ -235,15 +269,26 @@ class SMCTui(App):
                 msg = t("threshold_reached").format(threshold=THRESHOLD)
                 self.log_message(msg, "info", "threshold_reach")
 
-        # Status change logging
+        # 关键事件文件日志
         if self.last_status != self.battery_status and self.last_status is not None:
-             msg = t("status_changed").format(old=self.last_status, new=self.battery_status)
-             self.log_message(msg, "info", "status_change")
+            msg = t("status_changed").format(old=self.last_status, new=self.battery_status)
+            self.log_message(msg, "info", "status_change")
+            self.log_message_file(f"充电状态变更: {self.last_status} -> {self.battery_status}", "info")
 
         if self.last_ac != self.ac_online and self.last_ac is not None:
             msg = t("ac_connected") if self.ac_online else t("ac_disconnected")
             emoji_key = "ac_connect" if self.ac_online else "ac_disconnect"
             self.log_message(msg, "info", emoji_key)
+            self.log_message_file(f"外部电源{'接入' if self.ac_online else '断开'}", "info")
+
+        # 主板/电池供电切换
+        if self.last_status is not None and self.last_status != self.battery_status:
+            if self.battery_status == "Discharging":
+                self.log_message_file("电池供电开始", "info")
+            elif self.battery_status == "Charging":
+                self.log_message_file("主板供电开始（充电）", "info")
+            elif self.battery_status == "Full" or self.battery_status == "Not charging":
+                self.log_message_file("主板供电（不充电）", "info")
 
         self.last_cap = self.battery_capacity
         self.last_status = self.battery_status
@@ -303,17 +348,18 @@ if __name__ == "__main__":
     parser.add_argument("--disable-emoji", action="store_true", help="Disable emojis in UI")
     args = parser.parse_args()
 
+
     # Load Config from .env and CLI
-    LOG_LEVEL = os.getenv("LOG_LEVEL", "info").lower()
+    CONSOLE_LOG_LEVEL = os.getenv("CONSOLE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
+    FILE_LOG_LEVEL = os.getenv("FILE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
+    LOG_LEVEL = CONSOLE_LOG_LEVEL  # 兼容旧变量名
     BAT_PATH = os.getenv("BAT_PATH", "/sys/class/power_supply/BAT0")
     AC_PATH = os.getenv("AC_PATH", "/sys/class/power_supply/ADP1")
-    
     # Threshold Logic: CLI arg > .env > default 55
     cli_threshold = args.threshold
     env_threshold = int(os.getenv("BATTERY_THRESHOLD", "55"))
     chosen_threshold = cli_threshold if cli_threshold is not None else env_threshold
     THRESHOLD = chosen_threshold
-    
     # Load I18N
     I18N = load_i18n(args.lang.lower(), args.disable_emoji)
     USE_EMOJI = not args.disable_emoji
