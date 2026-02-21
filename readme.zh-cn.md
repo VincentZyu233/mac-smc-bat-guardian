@@ -1,11 +1,5 @@
+![mac-smc-bat-guardian](https://socialify.git.ci/VincentZyu233/mac-smc-bat-guardian/image?custom_description=%F0%9F%94%8B+Intel+CPU+MacBook+Power+Management+%26+SMC+BCLM+Controller+for+Linux.+A+sophisticated+TUI+to+monitor+real-time+battery+health%2C+current+flow%2C+and+set+charge+thresholds.+&custom_language=Python&description=1&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2FVincentZyu233%2Fmac-smc-bat-guardian%2Fabf88fb5b555d81f75dc4503150815d152da33e1%2Fassets%2Fmerged_logo.svg&name=1&owner=1&pulls=1&stargazers=1&theme=Light)
 
-
-<div align="center" style="background:#f5f5f7;padding:18px 0 10px 0;border-radius:12px;margin-bottom:8px;">
-  <img src="assets/apple-173-svgrepo-com.svg" alt="Apple" width="45" style="vertical-align:middle;margin:0 10px;"/>
-  <img src="assets/intel-icon.svg" alt="Intel" width="60" style="vertical-align:middle;margin:0 10px;"/>
-  <img src="assets/linux-svgrepo-com.svg" alt="Linux" width="60" style="vertical-align:middle;margin:0 10px;"/>
-  <img src="assets/apple-laptop-computer-svgrepo-com.svg" alt="Apple Laptop" width="60" style="vertical-align:middle;margin:0 10px;"/>
-</div>
 
 # 🛡️ mac-smc-bat-guardian
 
@@ -24,6 +18,13 @@
 - **不支持**: 
   - M1/M2/M3 (Apple Silicon) 芯片设备（它们使用不同的电源管理机制）。
   - 非常老旧的、不具备电池充电阈值控制能力的 Mac。
+
+<div align="center" style="background:#f5f5f7;padding:18px 0 10px 0;border-radius:12px;margin-bottom:8px;">
+  <img src="assets/apple-173-svgrepo-com.svg" alt="Apple" width="45" style="vertical-align:middle;margin:0 10px;"/>
+  <img src="assets/intel-icon.svg" alt="Intel" width="60" style="vertical-align:middle;margin:0 10px;"/>
+  <img src="assets/linux-svgrepo-com.svg" alt="Linux" width="60" style="vertical-align:middle;margin:0 10px;"/>
+  <img src="assets/apple-laptop-computer-svgrepo-com.svg" alt="Apple Laptop" width="60" style="vertical-align:middle;margin:0 10px;"/>
+</div>
 
 ### 🛠️ 编译与运行
 使用 GCC 编译 C 语言底层程序：
