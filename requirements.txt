@@ -1,3 +1,4 @@
 textual
 python-dotenv
 PyYAML
+svgelements

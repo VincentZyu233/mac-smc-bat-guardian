@@ -1,3 +1,8 @@
+
+<div align="center">
+  <img src="assets/merged_logo.svg" alt="Project Logo" width="180"/>
+</div>
+
 # 🛡️ mac-smc-bat-guardian
 
 [English](readme.md) | [中文说明](readme.zh-cn.md)
