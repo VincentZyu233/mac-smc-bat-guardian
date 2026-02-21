@@ -79,9 +79,9 @@ class SMCTui(App):
         background: #2980b9;
         color: white;
         text-style: bold;
-        height: 3;
-        min-height: 3;
-        max-height: 3;
+        height: 1;
+        min-height: 1;
+        max-height: 1;
     }
 
     #main_container {
@@ -96,7 +96,7 @@ class SMCTui(App):
         border: solid #3498db;
         padding: 0 1;
         overflow-y: auto;
-        scrollbar-gutter: stable;
+        /* scrollbar-gutter: stable; */
     }
 
     #right_panel {
@@ -107,25 +107,26 @@ class SMCTui(App):
         background: #2c3e50;
         overflow-y: auto;
         scrollbar-size: 1 1;
-        scrollbar-gutter: stable;
+        /* scrollbar-gutter: stable; */
     }
 
     .info_label {
         text-style: bold;
         color: #f1c40f;
         margin: 0;
+        margin-top: 1; /* 增加一点间距感 */
     }
 
     .info_value {
         color: #ecf0f1;
-        margin: 0;
+        /* margin: 0; */
     }
 
     Log {
         background: transparent;
         color: #bdc3c7;
-        min-height: 12;
-        padding-bottom: 2;
+        height: 1fr; /* 强制填满左侧 */
+        border-top: dashed #3498db; /* 给日志加个小分隔线 */
     }
     """
 
