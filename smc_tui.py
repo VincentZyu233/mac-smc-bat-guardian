@@ -106,7 +106,7 @@ class SMCTui(App):
         padding: 0 1;
         background: #2c3e50;
         overflow-y: auto;
-        scrollbar-size: thin;
+        scrollbar-size: 1 1;
         scrollbar-gutter: stable;
     }
 
