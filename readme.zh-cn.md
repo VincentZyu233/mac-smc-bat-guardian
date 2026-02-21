@@ -1,6 +1,10 @@
 
-<div align="center">
-  <img src="assets/merged_logo.svg" alt="Project Logo" width="180"/>
+
+<div align="center" style="background:#f5f5f7;padding:18px 0 10px 0;border-radius:12px;margin-bottom:8px;">
+  <img src="assets/apple-173-svgrepo-com.svg" alt="Apple" width="45" style="vertical-align:middle;margin:0 10px;"/>
+  <img src="assets/intel-icon.svg" alt="Intel" width="60" style="vertical-align:middle;margin:0 10px;"/>
+  <img src="assets/linux-svgrepo-com.svg" alt="Linux" width="60" style="vertical-align:middle;margin:0 10px;"/>
+  <img src="assets/apple-laptop-computer-svgrepo-com.svg" alt="Apple Laptop" width="60" style="vertical-align:middle;margin:0 10px;"/>
 </div>
 
 # 🛡️ mac-smc-bat-guardian

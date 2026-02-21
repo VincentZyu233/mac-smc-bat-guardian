@@ -9,7 +9,7 @@ def generate_grid_svg():
     # 定义四个图标的文件名
     files = [
         "apple-173-svgrepo-com.svg", "intel-icon.svg",
-        "linux-svgrepo-com.svg", "macos-svgrepo-com.svg"
+        "linux-svgrepo-com.svg", "apple-laptop-computer-svgrepo-com.svg"
     ]
     
     # SVG 模板：400x400 布局
