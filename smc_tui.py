@@ -70,6 +70,7 @@ class SMCTui(App):
     Screen {
         background: #1a1a1b;
         overflow: hidden;
+        layout: vertical; /* 明确指定 Screen 的布局方式 */
     }
 
     #title {
@@ -81,14 +82,16 @@ class SMCTui(App):
         height: 3;
         min-height: 3;
         max-height: 3;
-        /* dock: top;  // Textual 0.30+自动顶部 */
-        /* z-index: 10;  // 移除 */
+        // dock: top;  // Textual 0.30+自动顶部
+        // z-index: 10;  // 移除
     }
 
     #main_container {
+        layout: horizontal; /* 明确主容器是横向排列左右面板 */
         height: 1fr;
-        margin: 0;
-        overflow: hidden;
+        width: 100%;
+        // margin: 0;
+        // overflow: hidden;
     }
 
     #left_panel {
@@ -97,7 +100,7 @@ class SMCTui(App):
         border: solid #3498db;
         padding: 0 1;
         overflow-y: auto;
-        scrollbar-size: thin;
+        // scrollbar-size: thin;
         scrollbar-gutter: stable;
     }
 
