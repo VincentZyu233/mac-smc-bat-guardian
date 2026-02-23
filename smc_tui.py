@@ -1,4 +1,3 @@
-
 import os
 import time
 import argparse
@@ -30,16 +29,12 @@ LOG_LEVEL = "info"  # 兼容旧变量名
 THRESHOLD = 55
 BAT_PATH = ""
 AC_PATH = ""
+SMC_PATH = ""
 I18N = {}
 USE_EMOJI = True
 
-LEVELS = {
-    "debug": 10,
-    "info": 20,
-    "warn": 30,
-    "error": 40,
-    "silent": 50
-}
+LEVELS = {"debug": 10, "info": 20, "warn": 30, "error": 40, "silent": 50}
+
 
 def load_i18n(lang_code, disable_emoji):
     try:
@@ -53,17 +48,19 @@ def load_i18n(lang_code, disable_emoji):
     if lang_code not in data:
         print(f"Warning: Language '{lang_code}' not found, falling back to 'en'.")
         lang_code = "en"
-    
+
     strings = data[lang_code]
     emojis = data.get("emojis", {}) if not disable_emoji else {}
-    
+
     return strings, emojis
+
 
 def t(key):
     """Translate key to string, prepending emoji if enabled."""
     text = I18N[0].get(key, key)
     icon = I18N[1].get(key, "")
     return f"{icon}{text}"
+
 
 class SMCTui(App):
     CSS = """
@@ -134,11 +131,13 @@ class SMCTui(App):
     battery_current = reactive(0)
     battery_status = reactive("N/A")
     ac_online = reactive(False)
-    
+
     last_cap = None
     last_status = None
     last_ac = None
-    charging_override_active = False  # True when we've actively stopped charging due to threshold
+    charging_override_active = (
+        False  # True when we've actively stopped charging due to threshold
+    )
 
     def compose(self) -> ComposeResult:
         yield Static(t("title"), id="title")
@@ -152,20 +151,23 @@ class SMCTui(App):
                 yield Label(id="curr_val", classes="info_value")
                 yield Label(id="status_val", classes="info_value")
                 yield Label(id="ac_val", classes="info_value")
-                
+
                 yield Label(t("power_details"), classes="info_label")
                 yield Label(id="char_bat", classes="info_value")
                 yield Label(id="char_mb", classes="info_value")
                 yield Label(id="bat_supp", classes="info_value")
+
+                yield Label(t("fan_details"), classes="info_label")
+                yield Label(id="fan1_val", classes="info_value")
+                yield Label(id="fan2_val", classes="info_value")
 
         yield Footer()
 
     def on_mount(self) -> None:
         msg = t("monitor_started").format(threshold=THRESHOLD)
         self.log_message(msg, "info", "monitor_start")
-        self.update_stats() # Populate initial values
-        self.set_interval(2.0, self.update_stats)
-
+        self.update_stats()  # Populate initial values
+        self.set_interval(REFRESH_INTERVAL, self.update_stats)
 
     def log_message(self, msg: str, level: str = "info", emoji_key: str = None):
         # 控制台日志
@@ -183,7 +185,9 @@ class SMCTui(App):
             lvl_emoji = I18N[1].get(f"log_{level.lower()}", "")
             content_emoji = I18N[1].get(emoji_key, "") if emoji_key else ""
             log_view = self.query_one("#log_view", Log)
-            log_view.write_line(f"{lvl_emoji}{prefix_color}[{timestamp}] {level.upper()}: {content_emoji}{msg}[/]")
+            log_view.write_line(
+                f"{lvl_emoji}{prefix_color}[{timestamp}] {level.upper()}: {content_emoji}{msg}[/]"
+            )
         # 文件日志
         self.log_message_file(msg, level)
 
@@ -205,10 +209,20 @@ class SMCTui(App):
             full_path = os.path.join(path, file)
             if not os.path.exists(full_path):
                 return None
-            with open(full_path, 'r') as f:
+            with open(full_path, "r") as f:
                 return f.read().strip()
         except Exception:
             return None
+
+    def get_fan_speed(self, fan_num: int):
+        try:
+            fan_input_path = os.path.join(SMC_PATH, f"fan{fan_num}_input")
+            if os.path.exists(fan_input_path):
+                with open(fan_input_path, "r") as f:
+                    return int(f.read().strip()) // 4
+        except Exception:
+            pass
+        return None
 
     def update_stats(self) -> None:
         cap_str = self.get_sys_val(BAT_PATH, "capacity")
@@ -227,13 +241,19 @@ class SMCTui(App):
             self.ac_online = ac_str == "1"
 
         # Update UI Labels
-        self.query_one("#cap_val", Label).update(f"{t('capacity')} {self.battery_capacity}%")
-        self.query_one("#curr_val", Label).update(f"{t('current')} {self.battery_current} mA")
-        self.query_one("#status_val", Label).update(f"{t('status')} {self.battery_status}")
-        
+        self.query_one("#cap_val", Label).update(
+            f"{t('capacity')} {self.battery_capacity}%"
+        )
+        self.query_one("#curr_val", Label).update(
+            f"{t('current')} {self.battery_current} mA"
+        )
+        self.query_one("#status_val", Label).update(
+            f"{t('status')} {self.battery_status}"
+        )
+
         ac_text = t("connected") if self.ac_online else t("disconnected")
         self.query_one("#ac_val", Label).update(f"{t('ac_power')} {ac_text}")
-        
+
         # Power source details
         charging_bat = self.battery_status == "Charging"
         charging_mb = self.ac_online
@@ -241,30 +261,58 @@ class SMCTui(App):
 
         yes = t("yes")
         no = t("no")
-        
+
         # Icons for boolean states
         cb_icon = I18N[1].get("char_bat_yes" if charging_bat else "char_bat_no", "")
         cmb_icon = I18N[1].get("char_mb_yes" if charging_mb else "char_mb_no", "")
         bs_icon = I18N[1].get("bat_supp_yes" if bat_supplying else "bat_supp_no", "")
 
-        self.query_one("#char_bat", Label).update(f"{I18N[0].get('char_bat_label', '')} {cb_icon}{yes if charging_bat else no}")
-        self.query_one("#char_mb", Label).update(f"{I18N[0].get('char_mb_label', '')} {cmb_icon}{yes if charging_mb else no}")
-        self.query_one("#bat_supp", Label).update(f"{I18N[0].get('bat_supp_label', '')} {bs_icon}{yes if bat_supplying else no}")
+        self.query_one("#char_bat", Label).update(
+            f"{I18N[0].get('char_bat_label', '')} {cb_icon}{yes if charging_bat else no}"
+        )
+        self.query_one("#char_mb", Label).update(
+            f"{I18N[0].get('char_mb_label', '')} {cmb_icon}{yes if charging_mb else no}"
+        )
+        self.query_one("#bat_supp", Label).update(
+            f"{I18N[0].get('bat_supp_label', '')} {bs_icon}{yes if bat_supplying else no}"
+        )
 
-
+        # Fan speed
+        fan1_speed = self.get_fan_speed(0)
+        fan2_speed = self.get_fan_speed(1)
+        self.query_one("#fan1_val", Label).update(
+            f"{t('fan_speed')} {fan1_speed} RPM"
+            if fan1_speed
+            else f"{t('fan_speed')} N/A"
+        )
+        self.query_one("#fan2_val", Label).update(
+            f"{t('fan_speed')} {fan2_speed} RPM"
+            if fan2_speed
+            else f"{t('fan_speed')} N/A"
+        )
 
         # Active Charge Control Logic
-        if self.ac_online and self.battery_status == "Charging" and self.battery_capacity >= THRESHOLD:
+        if (
+            self.ac_online
+            and self.battery_status == "Charging"
+            and self.battery_capacity >= THRESHOLD
+        ):
             if not self.charging_override_active:
-                msg = t("threshold_crossed").format(threshold=THRESHOLD, capacity=self.battery_capacity)
+                msg = t("threshold_crossed").format(
+                    threshold=THRESHOLD, capacity=self.battery_capacity
+                )
                 self.log_message(msg, "warn", "threshold_cross")
-                self.log_message_file(f"电量跨越阈值! 当前电量: {self.battery_capacity}%", "warn")
+                self.log_message_file(
+                    f"电量跨越阈值! 当前电量: {self.battery_capacity}%", "warn"
+                )
                 self._stop_charging()
                 self.charging_override_active = True
         elif self.battery_capacity < THRESHOLD - 3 and self.charging_override_active:
             self._start_charging()
             self.charging_override_active = False
-            self.log_message_file(f"电量回落至阈值以下，恢复充电: {self.battery_capacity}%", "info")
+            self.log_message_file(
+                f"电量回落至阈值以下，恢复充电: {self.battery_capacity}%", "info"
+            )
 
         # Logging Logic
         if self.last_cap is not None:
@@ -274,15 +322,21 @@ class SMCTui(App):
 
         # 关键事件文件日志
         if self.last_status != self.battery_status and self.last_status is not None:
-            msg = t("status_changed").format(old=self.last_status, new=self.battery_status)
+            msg = t("status_changed").format(
+                old=self.last_status, new=self.battery_status
+            )
             self.log_message(msg, "info", "status_change")
-            self.log_message_file(f"充电状态变更: {self.last_status} -> {self.battery_status}", "info")
+            self.log_message_file(
+                f"充电状态变更: {self.last_status} -> {self.battery_status}", "info"
+            )
 
         if self.last_ac != self.ac_online and self.last_ac is not None:
             msg = t("ac_connected") if self.ac_online else t("ac_disconnected")
             emoji_key = "ac_connect" if self.ac_online else "ac_disconnect"
             self.log_message(msg, "info", emoji_key)
-            self.log_message_file(f"外部电源{'接入' if self.ac_online else '断开'}", "info")
+            self.log_message_file(
+                f"外部电源{'接入' if self.ac_online else '断开'}", "info"
+            )
 
         # 主板/电池供电切换
         if self.last_status is not None and self.last_status != self.battery_status:
@@ -303,7 +357,7 @@ class SMCTui(App):
         end_threshold_path = os.path.join(BAT_PATH, "charge_control_end_threshold")
         if os.path.exists(end_threshold_path):
             try:
-                with open(end_threshold_path, 'w') as f:
+                with open(end_threshold_path, "w") as f:
                     f.write(str(THRESHOLD))
                 self.log_message(f"已通过 sysfs 设置充电上限: {THRESHOLD}%", "info")
                 return
@@ -315,7 +369,9 @@ class SMCTui(App):
         if os.path.exists(bin_path) and os.access(bin_path, os.X_OK):
             try:
                 subprocess.run([bin_path, str(THRESHOLD)], check=True)
-                self.log_message(f"已通过 SMC 写入 BCLM={THRESHOLD}，充电已限制", "info")
+                self.log_message(
+                    f"已通过 SMC 写入 BCLM={THRESHOLD}，充电已限制", "info"
+                )
             except subprocess.CalledProcessError as e:
                 self.log_message(f"SMC 写入失败: {e}", "error")
         else:
@@ -327,7 +383,7 @@ class SMCTui(App):
         end_threshold_path = os.path.join(BAT_PATH, "charge_control_end_threshold")
         if os.path.exists(end_threshold_path):
             try:
-                with open(end_threshold_path, 'w') as f:
+                with open(end_threshold_path, "w") as f:
                     f.write("100")
                 self.log_message("已通过 sysfs 恢复充电 (上限 100%)", "info")
                 return
@@ -343,21 +399,31 @@ class SMCTui(App):
             except subprocess.CalledProcessError as e:
                 self.log_message(f"SMC 恢复失败: {e}", "error")
 
+
 if __name__ == "__main__":
     # Parse CLI arguments
     parser = argparse.ArgumentParser(description="SMC TUI monitor")
-    parser.add_argument("threshold", nargs="?", type=int, help="Initial battery threshold (0-100)")
-    parser.add_argument("--lang", default="en", help="Language code (en, zh-cn), default: en")
-    parser.add_argument("--disable-emoji", action="store_true", help="Disable emojis in UI")
+    parser.add_argument(
+        "threshold", nargs="?", type=int, help="Initial battery threshold (0-100)"
+    )
+    parser.add_argument(
+        "--lang", default="en", help="Language code (en, zh-cn), default: en"
+    )
+    parser.add_argument(
+        "--disable-emoji", action="store_true", help="Disable emojis in UI"
+    )
     args = parser.parse_args()
 
-
     # Load Config from .env and CLI
-    CONSOLE_LOG_LEVEL = os.getenv("CONSOLE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
+    CONSOLE_LOG_LEVEL = os.getenv(
+        "CONSOLE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")
+    ).lower()
     FILE_LOG_LEVEL = os.getenv("FILE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
     LOG_LEVEL = CONSOLE_LOG_LEVEL  # 兼容旧变量名
     BAT_PATH = os.getenv("BAT_PATH", "/sys/class/power_supply/BAT0")
     AC_PATH = os.getenv("AC_PATH", "/sys/class/power_supply/ADP1")
+    SMC_PATH = os.getenv("SMC_PATH", "/sys/devices/platform/applesmc.768")
+    REFRESH_INTERVAL = float(os.getenv("TUI_REFRESH_MS", "500")) / 1000.0
     # Threshold Logic: CLI arg > .env > default 55
     cli_threshold = args.threshold
     env_threshold = int(os.getenv("BATTERY_THRESHOLD", "55"))
@@ -368,7 +434,7 @@ if __name__ == "__main__":
     USE_EMOJI = not args.disable_emoji
 
     # Root check
-    if os.name != 'nt':
+    if os.name != "nt":
         try:
             if os.geteuid() != 0:
                 print("Error: this script must be run as root (sudo).")

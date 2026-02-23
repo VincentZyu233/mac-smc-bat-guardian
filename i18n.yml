@@ -10,6 +10,8 @@ emojis:
   status: "📊 "
   ac_power: "🔌 "
   power_details: "⚙️ "
+  fan_details: "💨 "
+  fan_speed: "💨 "
   char_bat_yes: "✅ "
   char_bat_no: "❌ "
   char_mb_yes: "✅ "
@@ -51,6 +53,10 @@ en:
   char_mb_label: "- Charging Motherboard:"
   bat_supp_label: "- Battery Supplying:"
 
+  # Fan labels
+  fan_speed: "Fan Speed:"
+  fan_details: "Fan Details:"
+
   # Log messages templates (Python f-string style placeholders)
   monitor_started: "Monitor started (Threshold: {threshold}%)"
   threshold_crossed: "Battery threshold {threshold}% crossed! Current: {capacity}%"
@@ -80,6 +86,10 @@ zh-cn:
   char_bat_label: "- 正在充电:"
   char_mb_label: "- 主板供电:"
   bat_supp_label: "- 电池供电:"
+
+  # Fan labels
+  fan_speed: "风扇转速:"
+  fan_details: "风扇详情:"
 
   # Log messages
   monitor_started: "监控已启动 (阈值: {threshold}%)"
