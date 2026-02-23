@@ -225,13 +225,18 @@ class SMCTui(App):
             if os.path.exists(fan_input_path):
                 with open(fan_input_path, "r") as f:
                     raw_val = int(f.read().strip())
-                    rpm = raw_val // 4
+                    if FAN_UNIT == "r4":
+                        val = raw_val
+                        unit = "R4"
+                    else:
+                        val = raw_val // 4
+                        unit = "RPM"
                     self.log_message(
-                        f"Fan {fan_num} ({fan_label}): {raw_val} -> {rpm} RPM",
+                        f"Fan {fan_num} ({fan_label}): {raw_val} -> {val} {unit}",
                         "debug",
                         "fan_read",
                     )
-                    return rpm
+                    return val
             else:
                 self.log_message(
                     f"Fan {fan_num} path not found: {fan_input_path}",
@@ -425,30 +430,74 @@ if __name__ == "__main__":
         "threshold", nargs="?", type=int, help="Initial battery threshold (0-100)"
     )
     parser.add_argument(
-        "--lang", default="en", help="Language code (en, zh-cn), default: en"
+        "--lang", help="Language code (en, zh-cn). CLI > .env > default: en"
+    )
+    parser.add_argument(
+        "--fan-unit",
+        choices=["rpm", "r4"],
+        help="Fan speed unit: rpm (divided by 4) or r4 (raw value). CLI > .env > default: rpm",
+    )
+    parser.add_argument(
+        "--refresh-ms",
+        type=int,
+        help="TUI refresh interval in milliseconds. CLI > .env > default: 500",
     )
     parser.add_argument(
         "--disable-emoji", action="store_true", help="Disable emojis in UI"
     )
+    parser.add_argument(
+        "--console-log-level",
+        choices=["debug", "info", "warn", "error", "silent"],
+        help="Console log level. CLI > .env > default: info",
+    )
+    parser.add_argument(
+        "--file-log-level",
+        choices=["debug", "info", "warn", "error", "silent"],
+        help="File log level. CLI > .env > default: info",
+    )
+    parser.add_argument(
+        "--bat-path",
+        help="Battery path. CLI > .env > default: /sys/class/power_supply/BAT0",
+    )
+    parser.add_argument(
+        "--ac-path", help="AC path. CLI > .env > default: /sys/class/power_supply/ADP1"
+    )
+    parser.add_argument(
+        "--smc-path",
+        help="SMC path. CLI > .env > default: /sys/devices/platform/applesmc.768",
+    )
     args = parser.parse_args()
 
-    # Load Config from .env and CLI
-    CONSOLE_LOG_LEVEL = os.getenv(
-        "CONSOLE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")
-    ).lower()
-    FILE_LOG_LEVEL = os.getenv("FILE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
-    LOG_LEVEL = CONSOLE_LOG_LEVEL  # 兼容旧变量名
-    BAT_PATH = os.getenv("BAT_PATH", "/sys/class/power_supply/BAT0")
-    AC_PATH = os.getenv("AC_PATH", "/sys/class/power_supply/ADP1")
-    SMC_PATH = os.getenv("SMC_PATH", "/sys/devices/platform/applesmc.768")
-    REFRESH_INTERVAL = float(os.getenv("TUI_REFRESH_MS", "500")) / 1000.0
+    # Load Config from .env and CLI (CLI > .env > default)
+    CONSOLE_LOG_LEVEL = (
+        args.console_log_level
+        or os.getenv("CONSOLE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
+    )
+    FILE_LOG_LEVEL = (
+        args.file_log_level
+        or os.getenv("FILE_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")).lower()
+    )
+    LOG_LEVEL = CONSOLE_LOG_LEVEL
+    BAT_PATH = args.bat_path or os.getenv("BAT_PATH", "/sys/class/power_supply/BAT0")
+    AC_PATH = args.ac_path or os.getenv("AC_PATH", "/sys/class/power_supply/ADP1")
+    SMC_PATH = args.smc_path or os.getenv(
+        "SMC_PATH", "/sys/devices/platform/applesmc.768"
+    )
+    REFRESH_INTERVAL = (
+        float(args.refresh_ms or int(os.getenv("TUI_REFRESH_MS", "500"))) / 1000.0
+    )
+    FAN_UNIT = args.fan_unit or os.getenv("FAN_UNIT", "rpm").lower()
+
     # Threshold Logic: CLI arg > .env > default 55
     cli_threshold = args.threshold
     env_threshold = int(os.getenv("BATTERY_THRESHOLD", "55"))
     chosen_threshold = cli_threshold if cli_threshold is not None else env_threshold
     THRESHOLD = chosen_threshold
+
+    # Lang: CLI > .env > default en
+    chosen_lang = args.lang or os.getenv("LANG", "en")
     # Load I18N
-    I18N = load_i18n(args.lang.lower(), args.disable_emoji)
+    I18N = load_i18n(chosen_lang.lower(), args.disable_emoji)
     USE_EMOJI = not args.disable_emoji
 
     # Root check
