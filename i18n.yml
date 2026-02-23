@@ -30,6 +30,7 @@ emojis:
   status_change: "🔋 "
   ac_connect: "🔌 "
   ac_disconnect: "🔌 "
+  fan_read: "💨 "
 
 # English
 en:

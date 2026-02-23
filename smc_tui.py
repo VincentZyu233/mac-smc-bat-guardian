@@ -217,11 +217,29 @@ class SMCTui(App):
     def get_fan_speed(self, fan_num: int):
         try:
             fan_input_path = os.path.join(SMC_PATH, f"fan{fan_num}_input")
+            fan_label_path = os.path.join(SMC_PATH, f"fan{fan_num}_label")
+            fan_label = "Unknown"
+            if os.path.exists(fan_label_path):
+                with open(fan_label_path, "r") as f:
+                    fan_label = f.read().strip()
             if os.path.exists(fan_input_path):
                 with open(fan_input_path, "r") as f:
-                    return int(f.read().strip()) // 4
-        except Exception:
-            pass
+                    raw_val = int(f.read().strip())
+                    rpm = raw_val // 4
+                    self.log_message(
+                        f"Fan {fan_num} ({fan_label}): {raw_val} -> {rpm} RPM",
+                        "debug",
+                        "fan_read",
+                    )
+                    return rpm
+            else:
+                self.log_message(
+                    f"Fan {fan_num} path not found: {fan_input_path}",
+                    "debug",
+                    "fan_read",
+                )
+        except Exception as e:
+            self.log_message(f"Fan {fan_num} read error: {e}", "debug", "fan_read")
         return None
 
     def update_stats(self) -> None:
@@ -278,8 +296,8 @@ class SMCTui(App):
         )
 
         # Fan speed
-        fan1_speed = self.get_fan_speed(0)
-        fan2_speed = self.get_fan_speed(1)
+        fan1_speed = self.get_fan_speed(1)
+        fan2_speed = self.get_fan_speed(2)
         self.query_one("#fan1_val", Label).update(
             f"{t('fan_speed')} {fan1_speed} RPM"
             if fan1_speed
