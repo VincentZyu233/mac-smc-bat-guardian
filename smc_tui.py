@@ -301,15 +301,16 @@ class SMCTui(App):
         )
 
         # Fan speed
+        fan_unit_display = "R4" if FAN_UNIT == "r4" else "RPM"
         fan1_speed = self.get_fan_speed(1)
         fan2_speed = self.get_fan_speed(2)
         self.query_one("#fan1_val", Label).update(
-            f"{t('fan_speed')} {fan1_speed} RPM"
+            f"{t('fan_speed')} {fan1_speed} {fan_unit_display}"
             if fan1_speed
             else f"{t('fan_speed')} N/A"
         )
         self.query_one("#fan2_val", Label).update(
-            f"{t('fan_speed')} {fan2_speed} RPM"
+            f"{t('fan_speed')} {fan2_speed} {fan_unit_display}"
             if fan2_speed
             else f"{t('fan_speed')} N/A"
         )
