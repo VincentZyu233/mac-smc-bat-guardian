@@ -1,5 +1,9 @@
 ![mac-smc-bat-guardian](https://socialify.git.ci/VincentZyu233/mac-smc-bat-guardian/image?custom_description=%F0%9F%94%8B+Intel+CPU+MacBook+Power+Management+%26+SMC+BCLM+Controller+for+Linux.+A+sophisticated+TUI+to+monitor+real-time+battery+health%2C+current+flow%2C+and+set+charge+thresholds.+&custom_language=Python&description=1&forks=1&issues=1&language=1&logo=https%3A%2F%2Fraw.githubusercontent.com%2FVincentZyu233%2Fmac-smc-bat-guardian%2Fabf88fb5b555d81f75dc4503150815d152da33e1%2Fassets%2Fmerged_logo.svg&name=1&owner=1&pulls=1&stargazers=1&theme=Light)
 
+<div align="center">
+  <a href="https://github.com/VincentZyu233/mac-smc-bat-guardian"><img src="https://img.shields.io/badge/GitHub-VincentZyu233/mac--smc--bat--guardian-181717?style=flat-square&logo=github" alt="GitHub"></a>
+  <a href="https://gitee.com/vincent-zyu/mac-smc-bat-guardian"><img src="https://img.shields.io/badge/Gitee-vincent--zyu/mac--smc--bat--guardian-C71D23?style=flat-square&logo=gitee" alt="Gitee"></a>
+</div>
 
 # 🛡️ mac-smc-bat-guardian
 
@@ -14,7 +18,7 @@ It primarily addresses the issue where TLP cannot control the charging threshold
 This tool is primarily intended for **Intel x86_64** architecture MacBook devices that manage power via **SMC**.
 > My Test Device Info:
 > 
-> ![my_device_macbook_pro_11_4_A1398.png](my_device_macbook_pro_11_4_A1398.png)
+> ![my_device_macbook_pro_11_4_A1398.png](docs/images/my_device_macbook_pro_11_4_A1398.png)
 > 
 - **Verified**: MacBook Pro 11,4 A1398 (Mid 2015)
 - **Theoretical Support**: Most MacBook Pro/Air models from 2006 to 2020 (Intel chips). These devices typically include the `applesmc` driver and support the `BCLM` key.
