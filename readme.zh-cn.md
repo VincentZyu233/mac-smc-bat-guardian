@@ -3,7 +3,8 @@
 
 # 🛡️ mac-smc-bat-guardian
 
-[English](readme.md) | [中文说明](readme.zh-cn.md)
+> [📖English](readme.md)
+> [📖中文说明](readme.zh-cn.md)
 
 ## 🚀 项目简介
 本项目通过直接操作 MacBook 的 SMC (System Management Controller) 端口，强制设定充电阈值（BCLM），并提供实时电源监控。
@@ -11,12 +12,14 @@
 
 ### 💻 设备兼容性 (Compatibility)
 本工具主要适用于通过 **SMC** 管理电源的 **Intel x86_64** 架构 MacBook 设备。
-- **验证通过**: MacBook Pro 11,4 A1398(Mid 2015)
-> 我的设备信息:
-![my_device_macbook_pro_11_4_A1398.png](my_device_macbook_pro_11_4_A1398.png)
+> 我的测试设备信息:
+> 
+> ![my_device_macbook_pro_11_4_A1398.png](my_device_macbook_pro_11_4_A1398.png)
+> 
+- **验证通过**: MacBook Pro 11,4 A1398 (Mid 2015)
 - **理论支持**: 大多数 2006 年至 2020 年间的 MacBook Pro/Air (Intel 芯片)。这些设备通常包含 `applesmc` 驱动并支持 `BCLM` 键值。
 - **不支持**: 
-  - M1/M2/M3 (Apple Silicon) 芯片设备（它们使用不同的电源管理机制）。
+  - M1/M2/M3/M4/M5 (Apple Silicon) 芯片设备（它们使用不同的电源管理机制）。
   - 非常老旧的、不具备电池充电阈值控制能力的 Mac。
 
 <div align="center" style="background:#f5f5f7;padding:18px 0 10px 0;border-radius:12px;margin-bottom:8px;">
@@ -32,6 +35,9 @@
 gcc -O2 smc_control.c -o smc_control
 sudo ./smc_control 55  # 设置上限为 55%
 ```
+
+> ⚠️ **实验性说明**: SMC BCLM 写入为实验性功能，可能无法实际生效。从 Linux 直接操作 I/O 端口或许不足以控制电池充电——可靠的充电限制可能需要借助 macOS 原生的电源管理框架。
+> 本工具的核心价值更多在于其实时 TUI 监控能力。
 
 ### 🖥️ TUI 监控界面
 本项目提供了一个基于 Textual 的精美 TUI 监控界面。
@@ -59,7 +65,6 @@ sudo ./smc_control 55  # 设置上限为 55%
 ### 🔋 预期电源策略行为
 
 - [0% - 55%]: 充电逻辑激活，MagSafe 橙灯，current_now > 0。
-
 - [> 55%]: 触发截断。SMC 强制切断流向电池的电流。
 
 ### 🔍 预期现象：TUI输出与MagSafe充电灯
@@ -113,4 +118,3 @@ C 代码（`smc_control.c`）之所以不可或缺，是因为它直接通过 I/
 
 **总结：**
 - C 代码对于直接 SMC 控制是不可替代的。Python 适合做 UI、自动化和监控，但实际的硬件指令必须由以 root 权限运行的 C 代码完成。
-
