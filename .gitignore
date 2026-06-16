@@ -9,3 +9,7 @@ logs/
 .DS_Store
 __pycache__/
 .vscode/
+
+# 配置文件
+.env
+.env.bak*

@@ -32,6 +32,7 @@ AC_PATH = ""
 SMC_PATH = ""
 I18N = {}
 USE_EMOJI = True
+LOG_MAX_LINES = 1000
 
 LEVELS = {"debug": 10, "info": 20, "warn": 30, "error": 40, "silent": 50}
 
@@ -144,7 +145,7 @@ class SMCTui(App):
         with Horizontal(id="main_container"):
             with Vertical(id="left_panel"):
                 yield Label(t("realtime_logs"))
-                yield Log(id="log_view")
+                yield Log(id="log_view", max_lines=LOG_MAX_LINES)
             with Vertical(id="right_panel"):
                 yield Label(t("system_info"), classes="info_label")
                 yield Label(id="cap_val", classes="info_value")
@@ -457,6 +458,11 @@ if __name__ == "__main__":
         help="File log level. CLI > .env > default: info",
     )
     parser.add_argument(
+        "--log-max-lines",
+        type=int,
+        help="Max lines in TUI log view (0 = unlimited). CLI > .env > default: 1000",
+    )
+    parser.add_argument(
         "--bat-path",
         help="Battery path. CLI > .env > default: /sys/class/power_supply/BAT0",
     )
@@ -488,6 +494,9 @@ if __name__ == "__main__":
         float(args.refresh_ms or int(os.getenv("TUI_REFRESH_MS", "500"))) / 1000.0
     )
     FAN_UNIT = args.fan_unit or os.getenv("FAN_UNIT", "rpm").lower()
+    LOG_MAX_LINES = max(
+        0, args.log_max_lines or int(os.getenv("LOG_MAX_LINES", "1000"))
+    )
 
     # Threshold Logic: CLI arg > .env > default 55
     cli_threshold = args.threshold
