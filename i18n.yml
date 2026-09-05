@@ -12,12 +12,21 @@ emojis:
   power_details: "⚙️ "
   fan_details: "💨 "
   fan_speed: "💨 "
-  char_bat_yes: "✅ "
-  char_bat_no: "❌ "
-  char_mb_yes: "✅ "
-  char_mb_no: "❌ "
-  bat_supp_yes: "✅ "
-  bat_supp_no: "❌ "
+  char_bat_label: "🔋 "
+  char_mb_label: "🖥️ "
+  bat_supp_label: "⚡ "
+  capacity_value: "🔋 "
+  current_value: "⚡ "
+  fan_speed_value: "🌀 "
+  connected: "✅ "
+  disconnected: "❌ "
+  "yes": "✅ "
+  "no": "❌ "
+  bat_charging: "⚡ "
+  bat_discharging: "🔋 "
+  bat_full: "✅ "
+  bat_not_charging: "⏸️ "
+  unknown: "❔ "
   # Log level prefixes
   log_debug: "🐛 "
   log_info: "ℹ️ "
@@ -25,6 +34,7 @@ emojis:
   log_error: "🛑 "
   # Log content emojis
   monitor_start: "🚀 "
+  charge_control_disabled: "🔌 "
   threshold_cross: "⚠️ "
   threshold_reach: "🎯 "
   status_change: "🔋 "
@@ -46,13 +56,17 @@ en:
   # Status values
   connected: "Connected"
   disconnected: "Disconnected"
-  yes: "Yes"
-  no: "No"
+  "yes": "Yes"
+  "no": "No"
+  bat_charging: "Charging"
+  bat_discharging: "Discharging"
+  bat_full: "Full"
+  bat_not_charging: "Not charging"
   
   # Detail labels
-  char_bat_label: "- Charging Battery:"
-  char_mb_label: "- Charging Motherboard:"
-  bat_supp_label: "- Battery Supplying:"
+  char_bat_label: "Charging Battery:"
+  char_mb_label: "Charging Motherboard:"
+  bat_supp_label: "Battery Supplying:"
 
   # Fan labels
   fan_speed: "Fan Speed:"
@@ -60,6 +74,7 @@ en:
 
   # Log messages templates (Python f-string style placeholders)
   monitor_started: "Monitor started (Threshold: {threshold}%)"
+  charge_control_disabled: "Charge control disabled. Monitoring only."
   threshold_crossed: "Battery threshold {threshold}% crossed! Current: {capacity}%"
   threshold_reached: "Battery reached threshold: {threshold}%"
   status_changed: "Status changed: {old} -> {new}"
@@ -80,13 +95,17 @@ zh-cn:
   # Status values
   connected: "已连接"
   disconnected: "未连接"
-  yes: "是"
-  no: "否"
+  "yes": "是"
+  "no": "否"
+  bat_charging: "充电中"
+  bat_discharging: "放电中"
+  bat_full: "已充满"
+  bat_not_charging: "未充电"
   
   # Detail labels
-  char_bat_label: "- 正在充电:"
-  char_mb_label: "- 主板供电:"
-  bat_supp_label: "- 电池供电:"
+  char_bat_label: "正在充电:"
+  char_mb_label: "主板供电:"
+  bat_supp_label: "电池供电:"
 
   # Fan labels
   fan_speed: "风扇转速:"
@@ -94,6 +113,7 @@ zh-cn:
 
   # Log messages
   monitor_started: "监控已启动 (阈值: {threshold}%)"
+  charge_control_disabled: "充电控制已禁用，仅监控模式"
   threshold_crossed: "电量越过阈值 {threshold}%！当前: {capacity}%"
   threshold_reached: "电量达到阈值: {threshold}%"
   status_changed: "状态变更: {old} -> {new}"

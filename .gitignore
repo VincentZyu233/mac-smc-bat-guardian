@@ -1,3 +1,7 @@
+# 临时文件
+tmp/
+temp/
+
 # 编译产物
 smc_control
 

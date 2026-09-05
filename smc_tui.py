@@ -6,6 +6,7 @@ import sys
 import yaml
 from datetime import datetime
 from dotenv import load_dotenv
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, Log, Label
@@ -33,6 +34,14 @@ SMC_PATH = ""
 I18N = {}
 USE_EMOJI = True
 LOG_MAX_LINES = 1000
+CHARGE_CONTROL_ENABLED = True
+
+STATUS_I18N_MAP = {
+    "Charging": "bat_charging",
+    "Discharging": "bat_discharging",
+    "Full": "bat_full",
+    "Not charging": "bat_not_charging",
+}
 
 LEVELS = {"debug": 10, "info": 20, "warn": 30, "error": 40, "silent": 50}
 
@@ -61,6 +70,15 @@ def t(key):
     text = I18N[0].get(key, key)
     icon = I18N[1].get(key, "")
     return f"{icon}{text}"
+
+
+def format_info(label_key, value, value_emoji_key):
+    """Format right-panel rows with icons on both the key and value."""
+    value_icon = I18N[1].get(value_emoji_key, "")
+    content = Text()
+    content.append(f"{t(label_key)} ", style="bold")
+    content.append(f"{value_icon}{value}", style="italic underline")
+    return content
 
 
 class SMCTui(App):
@@ -167,6 +185,8 @@ class SMCTui(App):
     def on_mount(self) -> None:
         msg = t("monitor_started").format(threshold=THRESHOLD)
         self.log_message(msg, "info", "monitor_start")
+        if not CHARGE_CONTROL_ENABLED:
+            self.log_message(t("charge_control_disabled"), "info")
         self.update_stats()  # Populate initial values
         self.set_interval(REFRESH_INTERVAL, self.update_stats)
 
@@ -266,39 +286,50 @@ class SMCTui(App):
 
         # Update UI Labels
         self.query_one("#cap_val", Label).update(
-            f"{t('capacity')} {self.battery_capacity}%"
+            format_info("capacity", f"{self.battery_capacity}%", "capacity_value")
         )
         self.query_one("#curr_val", Label).update(
-            f"{t('current')} {self.battery_current} mA"
+            format_info("current", f"{self.battery_current} mA", "current_value")
         )
+        status_key = STATUS_I18N_MAP.get(self.battery_status, "unknown")
         self.query_one("#status_val", Label).update(
-            f"{t('status')} {self.battery_status}"
+            format_info(
+                "status",
+                I18N[0].get(status_key, self.battery_status),
+                status_key,
+            )
         )
 
-        ac_text = t("connected") if self.ac_online else t("disconnected")
-        self.query_one("#ac_val", Label).update(f"{t('ac_power')} {ac_text}")
+        ac_status_key = "connected" if self.ac_online else "disconnected"
+        self.query_one("#ac_val", Label).update(
+            format_info("ac_power", I18N[0][ac_status_key], ac_status_key)
+        )
 
         # Power source details
         charging_bat = self.battery_status == "Charging"
         charging_mb = self.ac_online
         bat_supplying = self.battery_status == "Discharging"
 
-        yes = t("yes")
-        no = t("no")
-
-        # Icons for boolean states
-        cb_icon = I18N[1].get("char_bat_yes" if charging_bat else "char_bat_no", "")
-        cmb_icon = I18N[1].get("char_mb_yes" if charging_mb else "char_mb_no", "")
-        bs_icon = I18N[1].get("bat_supp_yes" if bat_supplying else "bat_supp_no", "")
-
         self.query_one("#char_bat", Label).update(
-            f"{I18N[0].get('char_bat_label', '')} {cb_icon}{yes if charging_bat else no}"
+            format_info(
+                "char_bat_label",
+                I18N[0]["yes" if charging_bat else "no"],
+                "yes" if charging_bat else "no",
+            )
         )
         self.query_one("#char_mb", Label).update(
-            f"{I18N[0].get('char_mb_label', '')} {cmb_icon}{yes if charging_mb else no}"
+            format_info(
+                "char_mb_label",
+                I18N[0]["yes" if charging_mb else "no"],
+                "yes" if charging_mb else "no",
+            )
         )
         self.query_one("#bat_supp", Label).update(
-            f"{I18N[0].get('bat_supp_label', '')} {bs_icon}{yes if bat_supplying else no}"
+            format_info(
+                "bat_supp_label",
+                I18N[0]["yes" if bat_supplying else "no"],
+                "yes" if bat_supplying else "no",
+            )
         )
 
         # Fan speed
@@ -306,23 +337,23 @@ class SMCTui(App):
         fan1_speed = self.get_fan_speed(1)
         fan2_speed = self.get_fan_speed(2)
         self.query_one("#fan1_val", Label).update(
-            f"{t('fan_speed')} {fan1_speed} {fan_unit_display}"
-            if fan1_speed
-            else f"{t('fan_speed')} N/A"
+            format_info(
+                "fan_speed",
+                f"{fan1_speed} {fan_unit_display}" if fan1_speed else "N/A",
+                "fan_speed_value" if fan1_speed else "unknown",
+            )
         )
         self.query_one("#fan2_val", Label).update(
-            f"{t('fan_speed')} {fan2_speed} {fan_unit_display}"
-            if fan2_speed
-            else f"{t('fan_speed')} N/A"
+            format_info(
+                "fan_speed",
+                f"{fan2_speed} {fan_unit_display}" if fan2_speed else "N/A",
+                "fan_speed_value" if fan2_speed else "unknown",
+            )
         )
 
         # Active Charge Control Logic
-        if (
-            self.ac_online
-            and self.battery_status == "Charging"
-            and self.battery_capacity >= THRESHOLD
-        ):
-            if not self.charging_override_active:
+        if CHARGE_CONTROL_ENABLED:
+            if self.ac_online and self.battery_capacity >= THRESHOLD and not self.charging_override_active:
                 msg = t("threshold_crossed").format(
                     threshold=THRESHOLD, capacity=self.battery_capacity
                 )
@@ -332,12 +363,14 @@ class SMCTui(App):
                 )
                 self._stop_charging()
                 self.charging_override_active = True
-        elif self.battery_capacity < THRESHOLD - 3 and self.charging_override_active:
-            self._start_charging()
-            self.charging_override_active = False
-            self.log_message_file(
-                f"电量回落至阈值以下，恢复充电: {self.battery_capacity}%", "info"
-            )
+            elif self.battery_capacity < THRESHOLD - 3 and self.charging_override_active:
+                self._start_charging()
+                self.charging_override_active = False
+                self.log_message_file(
+                    f"电量回落至阈值以下，恢复充电: {self.battery_capacity}%", "info"
+                )
+            elif not self.ac_online and self.charging_override_active:
+                self.charging_override_active = False
 
         # Logging Logic
         if self.last_cap is not None:
@@ -347,9 +380,9 @@ class SMCTui(App):
 
         # 关键事件文件日志
         if self.last_status != self.battery_status and self.last_status is not None:
-            msg = t("status_changed").format(
-                old=self.last_status, new=self.battery_status
-            )
+            old_local = t(STATUS_I18N_MAP.get(self.last_status, self.last_status))
+            new_local = t(STATUS_I18N_MAP.get(self.battery_status, self.battery_status))
+            msg = t("status_changed").format(old=old_local, new=new_local)
             self.log_message(msg, "info", "status_change")
             self.log_message_file(
                 f"充电状态变更: {self.last_status} -> {self.battery_status}", "info"
@@ -463,6 +496,9 @@ if __name__ == "__main__":
         help="Max lines in TUI log view (0 = unlimited). CLI > .env > default: 1000",
     )
     parser.add_argument(
+        "--no-charge-control", action="store_true", help="Disable active charge control (monitoring only)"
+    )
+    parser.add_argument(
         "--bat-path",
         help="Battery path. CLI > .env > default: /sys/class/power_supply/BAT0",
     )
@@ -497,6 +533,9 @@ if __name__ == "__main__":
     LOG_MAX_LINES = max(
         0, args.log_max_lines or int(os.getenv("LOG_MAX_LINES", "1000"))
     )
+    CHARGE_CONTROL_ENABLED = not args.no_charge_control and os.getenv(
+        "CHARGE_CONTROL_ENABLED", "true"
+    ).lower() != "false"
 
     # Threshold Logic: CLI arg > .env > default 55
     cli_threshold = args.threshold
@@ -520,15 +559,18 @@ if __name__ == "__main__":
             pass
 
     # Call binary
-    bin_path = os.path.join(os.path.dirname(__file__), "smc_control")
-    if os.path.exists(bin_path) and os.access(bin_path, os.X_OK):
-        try:
-            subprocess.run([bin_path, str(chosen_threshold)], check=True)
-            print(f"Called {bin_path} {chosen_threshold}")
-        except subprocess.CalledProcessError as e:
-            print(f"Error: calling {bin_path} failed: {e}")
+    if CHARGE_CONTROL_ENABLED:
+        bin_path = os.path.join(os.path.dirname(__file__), "smc_control")
+        if os.path.exists(bin_path) and os.access(bin_path, os.X_OK):
+            try:
+                subprocess.run([bin_path, str(chosen_threshold)], check=True)
+                print(f"Called {bin_path} {chosen_threshold}")
+            except subprocess.CalledProcessError as e:
+                print(f"Error: calling {bin_path} failed: {e}")
+        else:
+            print(f"Warning: binary '{bin_path}' not found or not executable.")
     else:
-        print(f"Warning: binary '{bin_path}' not found or not executable.")
+        print("Charge control disabled. TUI will run in monitoring-only mode.")
 
     app = SMCTui()
     app.run()
