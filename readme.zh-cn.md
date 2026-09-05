@@ -11,20 +11,28 @@
 > [📖中文说明](readme.zh-cn.md)
 
 ## 🚀 项目简介
-本项目通过直接操作 MacBook 的 SMC (System Management Controller) 端口，强制设定充电阈值（BCLM），并提供实时电源监控。
-主要解决在 Linux 环境下，TLP 无法通过常规驱动控制 Mac 电池充电的问题。
+本项目提供一个 Python/Textual TUI，用于在 Linux 上实时监控 MacBook 的电池、电源、风扇和事件日志。
+项目还包含一个可选的 C 原型程序，用于尝试写入 SMC `BCLM` 键，实验性探索充电阈值控制。
+
+> [!IMPORTANT]
+>
+> ⚠️ **当前状态：充电阈值控制仍是实验性功能，并且在作者的测试设备上未能实际生效。**
+>
+> `smc_control` 显示“成功写入”只代表程序完成了 I/O 端口写入，不能证明 SMC 已接受或执行 `BCLM`，也不能证明充电电流已被限制。
+>
+> 可靠控制可能依赖尚未公开的固件协议或 macOS 专有电源管理组件；目前没有足够证据确认具体原因，因此本项目不保证 Linux 下的充电阈值控制有效。
 
 ### 💻 设备兼容性 (Compatibility)
-本工具主要适用于通过 **SMC** 管理电源的 **Intel x86_64** 架构 MacBook 设备。
-> 我的测试设备信息:
-> 
+监控界面主要适用于能通过 Linux sysfs 和 `applesmc` 暴露电池与风扇数据的 **Intel x86_64** MacBook。
+> 我的测试设备：
+>
 > ![my_device_macbook_pro_11_4_A1398.png](docs/images/my_device_macbook_pro_11_4_A1398.png)
-> 
-- **验证通过**: MacBook Pro 11,4 A1398 (Mid 2015)
-- **理论支持**: 大多数 2006 年至 2020 年间的 MacBook Pro/Air (Intel 芯片)。这些设备通常包含 `applesmc` 驱动并支持 `BCLM` 键值。
-- **不支持**: 
-  - M1/M2/M3/M4/M5 (Apple Silicon) 芯片设备（它们使用不同的电源管理机制）。
-  - 非常老旧的、不具备电池充电阈值控制能力的 Mac。
+>
+- **监控验证通过**：MacBook Pro 11,4 A1398 (Mid 2015)。
+- **控制实验目标**：能暴露 `applesmc` 和 `BCLM` 键的 Intel MacBook Pro/Air；存在这些接口并不代表阈值控制能够生效。
+- **本原型不支持**：
+  - 使用不同电源管理架构的 Apple Silicon 设备。
+  - 缺少所需 Linux sysfs 电池数据或 `applesmc` 接口的设备。
 
 <div align="center" style="background:#f5f5f7;padding:18px 0 10px 0;border-radius:12px;margin-bottom:8px;">
   <img src="assets/apple-173-svgrepo-com.svg" alt="Apple" width="45" style="vertical-align:middle;margin:0 10px;"/>
@@ -33,20 +41,25 @@
   <img src="assets/apple-laptop-computer-svgrepo-com.svg" alt="Apple Laptop" width="60" style="vertical-align:middle;margin:0 10px;"/>
 </div>
 
-### 🛠️ 编译与运行
-使用 GCC 编译 C 语言底层程序：
+### 🛠️ 编译实验性 C 辅助程序
+使用 GCC 编译可选的底层辅助程序：
 ```bash
 gcc -O2 smc_control.c -o smc_control
-sudo ./smc_control 55  # 设置上限为 55%
+sudo ./smc_control 55  # 尝试写入 55% 的 BCLM 阈值
 ```
 
-> ⚠️ **实验性说明**: SMC BCLM 写入为实验性功能，可能无法实际生效。从 Linux 直接操作 I/O 端口或许不足以控制电池充电——可靠的充电限制可能需要借助 macOS 原生的电源管理框架。
-> 本工具的核心价值更多在于其实时 TUI 监控能力。
+辅助程序需要 root 权限才能直接访问 I/O 端口。请仅在理解该写入尚属实验且程序无法验证结果的情况下运行。
 
 ### 🖥️ TUI 监控界面
-本项目提供了一个基于 Textual 的精美 TUI 监控界面。
+本项目提供一个基于 Textual 的实时系统信息与事件日志界面。
 
-1. **安装依赖**:
+> [!TIP]
+>
+> 💡 Python/Textual TUI 的电池、电源、风扇状态监控和日志记录可以独立使用。
+>
+> 如果只需要监控，建议添加 `--no-charge-control`，或在 `.env` 中设置 `CHARGE_CONTROL_ENABLED=false`，避免执行实验性的 SMC 写入。
+
+1. **安装依赖**：
    ```bash
    # https://gitee.com/wangnov/uv-custom/releases
    curl -LsSf https://gitee.com/wangnov/uv-custom/releases/download/0.10.4/uv-installer-custom.sh | sh
@@ -54,71 +67,61 @@ sudo ./smc_control 55  # 设置上限为 55%
    uv pip install -r requirements.txt
    ```
 
-2. **配置**:
+2. **配置**：
    复制 `.env.example` 为 `.env` 并根据需要修改：
    ```bash
    cp .env.example .env
    ```
-   你可以设置 `LOG_LEVEL` (debug, info, warn, error, silent) 和 `BATTERY_THRESHOLD`。
+   可配置项包括 `BATTERY_THRESHOLD`、`CHARGE_CONTROL_ENABLED` 以及控制台和文件日志等级。
 
-3. **运行**:
+3. **以纯监控模式运行**：
    ```bash
-   uv python run smc_tui.py
+   uv run ./smc_tui.py --lang zh-cn --no-charge-control
    ```
 
-### 🔋 预期电源策略行为
+只有在明确要以 root 权限测试实验性控制链路时，才移除 `--no-charge-control`。
 
-- [0% - 55%]: 充电逻辑激活，MagSafe 橙灯，current_now > 0。
-- [> 55%]: 触发截断。SMC 强制切断流向电池的电流。
+### 🔋 实验目标行为（尚未验证）
 
-### 🔍 预期现象：TUI输出与MagSafe充电灯
+以下行为描述的是实验目标，而不是已经确认的能力：
 
-以默认阈值（55）运行时：
+- 电量低于设定阈值时，连接电源后系统应继续正常充电。
+- 电量达到或超过阈值时，辅助程序会尝试通过 sysfs 或 C 程序写入 `BCLM`。
+- 固件可能忽略或覆盖该写入，因此即使程序报告尝试成功，设备也可能继续充电。
 
-- **电量低于55%时：**
-  - TUI 日志区会出现类似：
-    > [yellow][时间] WARN: ⚠️ 电量越过阈值 55%！当前: 50%
-  - 右侧状态区显示：
-    - 当前电量：50%
-    - 电池状态：Discharging（放电中）
-    - 正在充电：❌ no
-    - 电池供电：✅ yes
+### ⚙️ 为什么控制实验使用 C
 
-- **低于55%插上充电器时：**
-  - TUI 日志区出现“电源已连接”，状态变为 Charging。
-  - 右侧状态区显示：
-    - 电池状态：Charging
-    - 正在充电：✅ yes
-    - 主板供电：✅ yes
-    - 电池供电：❌ no
-    - 当前电流：为正（如 2000 mA）
-  - **MagSafe 灯变为橙色**（正在充电）
+C 辅助程序（`smc_control.c`）使用特权 I/O 操作，与位于 `0x300` 和 `0x304` 的传统 Apple SMC 端口通信。
 
-- **电量充到/超过55%时：**
-  - TUI 日志区出现：
-    > [yellow][时间] WARN: ⚠️ 电量越过阈值 55%！当前: 55%
-    > [green][时间] INFO: 🎯 电量达到阈值: 55%
-  - 右侧状态区显示：
-    - 电池状态：Not Charging 或 Idle
-    - 正在充电：❌ no
-    - 主板供电：✅ yes
-    - 电池供电：❌ no
-    - 当前电流：0 或接近0
-  - **MagSafe 灯变为绿色**（SMC 截断充电）
+- `ioperm`、`inb` 和 `outb` 提供该原型所需的底层端口访问能力。
+- Linux 要求以 root 权限执行这些操作。
 
-如出现上述现象，说明 SMC 控制与 TUI 监控均工作正常。
-
-### ⚙️ 为什么必须用C代码？
-
-C 代码（`smc_control.c`）之所以不可或缺，是因为它直接通过 I/O 端口（如 0x300/0x304）对 MacBook 的 SMC（系统管理控制器）进行底层硬件访问，从而设置电池充电上限（BCLM）。这一操作无法用纯 Python 或大多数高级语言实现。只有 C（或等价的底层语言）才能：
-
-- 使用 `ioperm`、`inb`、`outb` 等特权指令与硬件端口通信；
-- 以 root 权限在系统级别直接向 SMC 芯片发送命令。
-
-**为什么 Python 或其他高级语言做不到？**
-- Python 及大多数高级语言出于安全和可移植性考虑，不允许直接访问 CPU I/O 端口；
-- 即使用 Python 的 `ctypes` 或 `cffi`，本质上也需要 C 扩展或库来实现这些特权操作；
-- 所有已知的开源 SMC 工具（如 smcFanControl、smc-util）底层都是用 C/C++ 实现。
+**为什么端口写入成功不能证明控制生效：**
+- 辅助程序不会读回 `BCLM`，也不会验证 SMC 是否接受该值。
+- SMC 协议细节、时序、数据编码或不同设备的行为可能与当前原型的假设不同。
+- 固件或操作系统的电源管理可能拒绝、忽略或随后覆盖该设置尝试。
 
 **总结：**
-- C 代码对于直接 SMC 控制是不可替代的。Python 适合做 UI、自动化和监控，但实际的硬件指令必须由以 root 权限运行的 C 代码完成。
+- C 使直接端口实验成为可能，但尚未证明它足以实现充电控制；Python TUI 仍可独立用于监控和日志记录。
+
+### 🔍 TUI 中可以观察到什么
+
+在纯监控模式下，TUI 只展示可观察到的 sysfs 和 `applesmc` 数据，不会尝试改变充电行为。
+
+- **电池放电时：**
+  - 右侧面板显示电量、电流、本地化电池状态、电源连接状态和风扇转速。
+  - 事件日志记录检测到的电池状态和电源连接变化。
+
+- **连接电源时：**
+  - TUI 会报告连接事件，并显示 Linux 电池驱动提供的状态。
+  - 电流、充电状态和主板供电均为观察结果，而不是 TUI 发出的控制命令。
+
+- **电量达到设定阈值时：**
+  - 纯监控模式可以记录阈值事件，但不会写入充电限制。
+  - 实验性控制模式会尝试执行配置的 sysfs 或 SMC 写入，但不保证生效。
+
+- **评估控制实验时：**
+  - 电池电流、驱动状态和 MagSafe 指示灯都是有用信号，但任何单一信号都不能证明 `BCLM` 已生效。
+  - 测试时应结合多次测量和系统日志，不要将该原型作为有保证的电池保护机制。
+
+本项目受支持且推荐的用途是实时 TUI 监控和日志记录；充电阈值控制仍是未经验证的实验。

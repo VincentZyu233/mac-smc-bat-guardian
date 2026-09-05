@@ -11,20 +11,28 @@
 > [📖中文说明](readme.zh-cn.md)
 
 ## 🚀 Project Introduction
-This project manages the battery charging threshold (BCLM) by directly interacting with the SMC (System Management Controller) ports of a MacBook, while providing real-time power monitoring. 
-It primarily addresses the issue where TLP cannot control the charging threshold of MacBooks through standard drivers in a Linux environment.
+This project provides a Python/Textual TUI for real-time MacBook battery, power, fan, and event-log monitoring on Linux.
+It also includes an optional C prototype that attempts to write the SMC `BCLM` key as an experiment in charge-threshold control.
+
+> [!IMPORTANT]
+>
+> ⚠️ **Current status: charge-threshold control remains experimental and did not take effect on the author's test device.**
+>
+> A "write succeeded" message from `smc_control` only confirms that the program completed an I/O-port write. It does not prove that the SMC accepted or applied `BCLM`, or that battery charging was limited.
+>
+> Reliable control may depend on an undocumented firmware protocol or proprietary macOS power-management components. The available evidence is insufficient to confirm the exact cause, so this project does not guarantee charge-threshold control on Linux.
 
 ### 💻 Device Compatibility
-This tool is primarily intended for **Intel x86_64** architecture MacBook devices that manage power via **SMC**.
-> My Test Device Info:
-> 
+The monitoring interface is primarily intended for **Intel x86_64** MacBook models that expose battery and fan data through Linux sysfs and `applesmc`.
+> My test device:
+>
 > ![my_device_macbook_pro_11_4_A1398.png](docs/images/my_device_macbook_pro_11_4_A1398.png)
-> 
-- **Verified**: MacBook Pro 11,4 A1398 (Mid 2015)
-- **Theoretical Support**: Most MacBook Pro/Air models from 2006 to 2020 (Intel chips). These devices typically include the `applesmc` driver and support the `BCLM` key.
-- **Unsupported**: 
-  - M1/M2/M3/M4/M5 (Apple Silicon) devices (they use a different, proprietary power management mechanism).
-  - Very old MacBooks that do not have battery charging threshold control capabilities.
+>
+- **Monitoring verified**: MacBook Pro 11,4 A1398 (Mid 2015).
+- **Control experiment target**: Intel MacBook Pro/Air models that expose `applesmc` and the `BCLM` key. Their presence does not prove that threshold control will work.
+- **Unsupported by this prototype**:
+  - Apple Silicon devices, which use a different power-management architecture.
+  - Devices without the required Linux sysfs battery data or `applesmc` interfaces.
 
 <div align="center" style="background:#f5f5f7;padding:18px 0 10px 0;border-radius:12px;margin-bottom:8px;">
   <img src="assets/apple-173-svgrepo-com.svg" alt="Apple" width="45" style="vertical-align:middle;margin:0 10px;"/>
@@ -33,20 +41,25 @@ This tool is primarily intended for **Intel x86_64** architecture MacBook device
   <img src="assets/apple-laptop-computer-svgrepo-com.svg" alt="Apple Laptop" width="60" style="vertical-align:middle;margin:0 10px;"/>
 </div>
 
-### 🛠️ Build and Run
-Compile the low-level C program using GCC:
+### 🛠️ Build the Experimental C Helper
+Compile the optional low-level helper using GCC:
 ```bash
 gcc -O2 smc_control.c -o smc_control
-sudo ./smc_control 55  # Set limit to 55%
+sudo ./smc_control 55  # Attempt to write a 55% BCLM threshold
 ```
 
-> ⚠️ **Experimental**: The SMC BCLM write is experimental and may not take effect on your device. Direct I/O port access from Linux may be insufficient to control battery charging — reliable charge limiting likely requires macOS's native power management framework.
-> This tool's value is more in its real-time TUI monitoring capabilities.
+The helper requires root privileges for direct I/O-port access. Run it only if you understand that the write is experimental and is not verified by the program.
 
 ### 🖥️ TUI Monitoring Interface
-The project includes a sophisticated TUI monitoring interface built with Textual.
+The project includes a Textual interface for live system information and event logs.
 
-1. **Install Dependencies**:
+> [!TIP]
+>
+> 💡 The Python/Textual TUI remains useful as a standalone battery, power, fan, and logging monitor.
+>
+> For monitoring-only use, pass `--no-charge-control` or set `CHARGE_CONTROL_ENABLED=false` in `.env` to avoid experimental SMC writes.
+
+1. **Install dependencies**:
    ```bash
    # https://gitee.com/wangnov/uv-custom/releases
    curl -LsSf https://raw.githubusercontent.com/astral-sh/uv/main/install.sh | sh
@@ -54,71 +67,61 @@ The project includes a sophisticated TUI monitoring interface built with Textual
    uv pip install -r requirements.txt
    ```
 
-2. **Configuration**:
-   Copy `.env.example` to `.env` and modify as needed:
+2. **Configure**:
+   Copy `.env.example` to `.env` and modify it as needed:
    ```bash
    cp .env.example .env
    ```
-   You can configure `LOG_LEVEL` (debug, info, warn, error, silent) and `BATTERY_THRESHOLD`.
+   Available settings include `BATTERY_THRESHOLD`, `CHARGE_CONTROL_ENABLED`, and the console/file log levels.
 
-3. **Run**:
+3. **Run in monitoring-only mode**:
    ```bash
-   uv run python smc_tui.py
+   uv run ./smc_tui.py --lang en --no-charge-control
    ```
 
-### 🔋 Expected Power Delivery Behavior
+Remove `--no-charge-control` only when intentionally testing the experimental control path as root.
 
-- [0% - 55%]: Charging logic active, MagSafe light is orange, `current_now` > 0.
-- [> 55%]: Cut-off triggered. SMC forcibly cuts off the current flowing to the battery.
+### 🔋 Experimental Target Behavior (Not Verified)
 
-### ⚙️ Why C Code is Required
+The intended behavior below describes the experiment's goal, not a confirmed capability:
 
-The C code (`smc_control.c`) is essential because it performs direct low-level access to the MacBook's SMC (System Management Controller) hardware via I/O ports (such as 0x300/0x304). This is required to set the battery charge limit (BCLM) and cannot be done with pure Python or most other high-level languages. Only C (or similar low-level languages) can:
+- Below the configured threshold, the system should continue normal charging when AC power is connected.
+- At or above the threshold, the helper attempts to write `BCLM` through sysfs or the C binary.
+- The firmware may ignore or override the write, so charging can continue even when the program reports a successful attempt.
 
-- Use privileged instructions like `ioperm`, `inb`, and `outb` to communicate with hardware ports.
-- Operate at the system level with root permissions to send commands directly to the SMC chip.
+### ⚙️ Why the Control Experiment Uses C
 
-**Why can't Python or other high-level languages do this?**
-- Python and most high-level languages do not provide direct access to CPU I/O ports for security and portability reasons.
-- Even with Python's `ctypes` or `cffi`, you still need a C library or extension to perform these privileged operations.
-- All known open-source SMC tools (e.g., smcFanControl, smc-util) use C/C++ for this reason.
+The C helper (`smc_control.c`) uses privileged I/O operations to communicate with the legacy Apple SMC ports at `0x300` and `0x304`.
+
+- `ioperm`, `inb`, and `outb` provide the low-level port access required by this prototype.
+- Root privileges are required by Linux for those operations.
+
+**Why a successful port write is not proof of control:**
+- The helper does not read `BCLM` back or verify that the SMC accepted the value.
+- SMC protocol details, timing, data encoding, or device-specific behavior may differ from the prototype's assumptions.
+- Firmware or operating-system power management may reject, ignore, or later override the attempted setting.
 
 **Summary:**
-- The C code is irreplaceable for direct SMC control. Python is used for UI, automation, and monitoring, but the actual hardware command must be sent by C code running as root.
+- C enables this direct-port experiment, but it is not proven sufficient for charge control. The Python TUI remains useful independently for monitoring and logs.
 
-### 🔍 What to Expect: TUI Output & MagSafe LED
+### 🔍 What to Expect from the TUI
 
-When running with the default threshold (55):
+In monitoring-only mode, the TUI reports observable sysfs and `applesmc` data without attempting to change charging behavior.
 
-- **If battery drops below 55%:**
-  - TUI log shows a warning like:
-    > [yellow][time] WARN: ⚠️ Battery threshold 55% crossed! Current: 50%
-  - Right panel shows:
-    - Capacity: 50%
-    - Status: Discharging
-    - Charging Battery: ❌ no
-    - Battery Supplying: ✅ yes
+- **While the battery is discharging:**
+  - The right panel shows capacity, current, localized battery status, AC state, and fan speed.
+  - Event logs record detected battery-status and AC-state changes.
 
-- **When you plug in the charger below 55%:**
-  - TUI log shows "AC Power Connected" and status changes to Charging.
-  - Right panel shows:
-    - Status: Charging
-    - Charging Battery: ✅ yes
-    - Motherboard Power: ✅ yes
-    - Battery Supplying: ❌ no
-    - Current: positive value (e.g., 2000 mA)
-  - **MagSafe LED turns orange** (charging)
+- **When AC power is connected:**
+  - The TUI reports the connection and displays the status supplied by the Linux battery driver.
+  - Current, charging state, and motherboard power are observations rather than commands issued by the TUI.
 
-- **When battery reaches/exceeds 55%:**
-  - TUI log shows:
-    > [yellow][time] WARN: ⚠️ Battery threshold 55% crossed! Current: 55%
-    > [green][time] INFO: 🎯 Battery reached threshold: 55%
-  - Right panel shows:
-    - Status: Not Charging or Idle
-    - Charging Battery: ❌ no
-    - Motherboard Power: ✅ yes
-    - Battery Supplying: ❌ no
-    - Current: 0 or near 0
-  - **MagSafe LED turns green** (charging stopped by SMC)
+- **When capacity reaches the configured threshold:**
+  - Monitoring-only mode can report the threshold event but does not write a charge limit.
+  - Experimental control mode attempts the configured sysfs or SMC write, without guaranteeing that it takes effect.
 
-If you see these behaviors, SMC control and TUI monitoring are working as intended.
+- **When evaluating the experiment:**
+  - Battery current, driver status, and the MagSafe LED are useful signals, but no single signal proves that `BCLM` was applied.
+  - Use repeated measurements and system logs when testing, and do not rely on this prototype as a guaranteed battery-protection mechanism.
+
+The supported and recommended use of this project is real-time TUI monitoring and logging; charge-threshold control remains an unverified experiment.
